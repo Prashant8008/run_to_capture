@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Run2Capture Tactical Map</title>
+    <!-- Leaflet 1.9.4 CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <style>
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            box-sizing: border-box;
+        }
+
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #E2E8F0;
+            overflow: hidden;
+        }
+
+        .leaflet-container {
+            background: #E2E8F0 !important;
+            outline: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        /* Tactical player marker with animated pulse */
+        .player-marker-container {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .player-marker-pulse {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(204, 255, 0, 0.35);
+            animation: radar-pulse 2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+        }
+
+        .player-marker-core {
+            position: relative;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #CCFF00;
+            border: 2px solid #0C0E12;
+            box-shadow: 0 0 10px #CCFF00;
+            z-index: 2;
+            transition: background-color 0.3s ease;
+        }
+
+        .player-marker-heading {
+            position: absolute;
+            top: -6px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 8px solid #CCFF00;
+            transform-origin: 50% 16px;
+            z-index: 3;
+        }
+
+        @keyframes radar-pulse {
+            0% {
+                transform: scale(0.6);
+                opacity: 0.9;
+            }
+            70% {
+                transform: scale(1.8);
+                opacity: 0.1;
+            }
+            100% {
+                transform: scale(2.2);
+                opacity: 0;
+            }
+        }
+
+        /* Active GPS trail */
+        .leaflet-interactive {
+            cursor: pointer;
+        }
+
+        /* Tile crisp rendering */
+        .leaflet-tile {
+            filter: none;
+        }
+
+        .territory-tooltip {
+            background: rgba(14, 18, 26, 0.92) !important;
+            border: 1.5px solid #00F0FF !important;
+            color: #FFFFFF !important;
+            font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, monospace !important;
+            font-size: 11px !important;
+            font-weight: 800 !important;
+            padding: 4px 10px !important;
+            border-radius: 6px !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75) !important;
+            letter-spacing: 0.5px !important;
+            text-transform: uppercase !important;
+        }
+
+        .territory-tooltip::before {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Leaflet 1.9.4 JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        var map = null;
+        var currentTileLayer = null;
+        var playerMarker = null;
+        var accuracyCircle = null;
+        var territoriesLayerGroup = null;
+        var newCellsLayerGroup = null;
+        var expansionPreviewLayerGroup = null;
+        var confirmedTerritoryLayerGroup = null;
+        var activeRoutePolyline = null;
+        var activeRouteGlowPolyline = null;
+        var isMapInitialized = false;
+
+        // Default to production OpenStreetMap Street View tiles
+        var DEFAULT_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+        var DEFAULT_SUBDOMAINS = 'abc';
+        var DEFAULT_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+        function sendBridgeEvent(eventName, payload) {
+            if (window.AndroidMapBridge && typeof window.AndroidMapBridge[eventName] === 'function') {
+                try {
+                    if (payload !== undefined && payload !== null) {
+                        window.AndroidMapBridge[eventName](payload);
+                    } else {
+                        window.AndroidMapBridge[eventName]();
+                    }
+                } catch (e) {
+                    console.error("Bridge dispatch error for " + eventName + ": ", e);
+                }
+            }
+        }
+
+        function initMap() {
+            if (isMapInitialized) return;
+
+            try {
+                // Initialize map centered at San Francisco default or previous
+                map = L.map('map', {
+                    zoomControl: false,
+                    attributionControl: false,
+                    fadeAnimation: true,
+                    zoomAnimation: true,
+                    maxZoom: 19,
+                    minZoom: 3
+                }).setView([37.7749, -122.4194], 16);
+
+                territoriesLayerGroup = L.layerGroup().addTo(map);
+                newCellsLayerGroup = L.layerGroup().addTo(map);
+                expansionPreviewLayerGroup = L.layerGroup().addTo(map);
+                confirmedTerritoryLayerGroup = L.layerGroup().addTo(map);
+
+                // Setup default dark tactical tile layer
+                setTileLayer(DEFAULT_TILE_URL, DEFAULT_SUBDOMAINS, 19, DEFAULT_ATTRIBUTION);
+
+                // Map move and zoom events
+                map.on('moveend', function() {
+                    if (!map) return;
+                    var center = map.getCenter();
+                    if (window.AndroidMapBridge && window.AndroidMapBridge.mapMoved) {
+                        window.AndroidMapBridge.mapMoved(center.lat, center.lng);
+                    }
+                });
+
+                map.on('zoomend', function() {
+                    if (!map) return;
+                    var zoom = map.getZoom();
+                    if (window.AndroidMapBridge && window.AndroidMapBridge.mapZoomChanged) {
+                        window.AndroidMapBridge.mapZoomChanged(zoom);
+                    }
+                });
+
+                isMapInitialized = true;
+
+                // Notify Kotlin that map is ready
+                if (window.AndroidMapBridge && window.AndroidMapBridge.mapReady) {
+                    window.AndroidMapBridge.mapReady();
+                }
+            } catch (err) {
+                console.error("Leaflet initialization failed: ", err);
+                if (window.AndroidMapBridge && window.AndroidMapBridge.tileError) {
+                    window.AndroidMapBridge.tileError("Leaflet init error: " + err.message);
+                }
+            }
+        }
+
+        // ==========================================
+        // KOTLIN COMMANDS (Called from Android)
+        // ==========================================
+
+        window.setCenter = function(lat, lng, animated) {
+            if (!map) return;
+            if (animated === false) {
+                map.setView([lat, lng], map.getZoom(), { animate: false });
+            } else {
+                map.panTo([lat, lng], { animate: true, duration: 0.6 });
+            }
+        };
+
+        window.setZoom = function(zoom, animated) {
+            if (!map) return;
+            map.setZoom(zoom, { animate: animated !== false });
+        };
+
+        window.zoomIn = function() {
+            if (!map) return;
+            map.zoomIn();
+        };
+
+        window.zoomOut = function() {
+            if (!map) return;
+            map.zoomOut();
+        };
+
+        window.panBy = function(dx, dy) {
+            if (!map) return;
+            map.panBy([dx, dy]);
+        };
+
+        window.setUserLocation = function(lat, lng, accuracy, heading, colorHex) {
+            if (!map) return;
+            var latLng = [lat, lng];
+            var accentColor = colorHex || '#CCFF00';
+
+            // Create or update player marker
+            if (!playerMarker) {
+                var iconHtml = '<div class="player-marker-container" id="player-container">' +
+                               '<div class="player-marker-pulse" style="background: ' + accentColor + '33;"></div>' +
+                               '<div class="player-marker-core" style="background: ' + accentColor + '; box-shadow: 0 0 10px ' + accentColor + ';"></div>' +
+                               '</div>';
+
+                var icon = L.divIcon({
+                    className: 'custom-player-marker',
+                    html: iconHtml,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+
+                playerMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
+            } else {
+                playerMarker.setLatLng(latLng);
+            }
+
+            // Update accuracy circle
+            if (accuracy && accuracy > 0) {
+                if (!accuracyCircle) {
+                    accuracyCircle = L.circle(latLng, {
+                        radius: accuracy,
+                        color: accentColor,
+                        fillColor: accentColor,
+                        fillOpacity: 0.08,
+                        weight: 1.5,
+                        dashArray: '4, 4'
+                    }).addTo(map);
+                } else {
+                    accuracyCircle.setLatLng(latLng);
+                    accuracyCircle.setRadius(accuracy);
+                    accuracyCircle.setStyle({ color: accentColor, fillColor: accentColor });
+                }
+            } else if (accuracyCircle) {
+                map.removeLayer(accuracyCircle);
+                accuracyCircle = null;
+            }
+        };
+
+        window.renderTerritories = function(territoriesJson) {
+            if (!map || !territoriesLayerGroup) return;
+            territoriesLayerGroup.clearLayers();
+
+            try {
+                var territories = typeof territoriesJson === 'string' ? JSON.parse(territoriesJson) : territoriesJson;
+                if (!Array.isArray(territories)) return;
+
+                territories.forEach(function(t) {
+                    if (!t.coordinates || t.coordinates.length < 3) return;
+
+                    var latLngs = t.coordinates.map(function(coord) {
+                        return [coord.latitude !== undefined ? coord.latitude : coord.lat, coord.longitude !== undefined ? coord.longitude : coord.lng];
+                    });
+
+                    var color = t.colorHex || '#00F0FF';
+
+                    var polygon = L.polygon(latLngs, {
+                        color: color,
+                        weight: 3,
+                        opacity: 1.0,
+                        fillColor: color,
+                        fillOpacity: 0.35,
+                        dashArray: '8, 4'
+                    });
+
+                    if (t.name) {
+                        var tooltipContent = '<span style="color:' + color + '; font-weight:900;">◈</span> ' + t.name;
+                        polygon.bindTooltip(tooltipContent, {
+                            permanent: true,
+                            direction: 'center',
+                            className: 'territory-tooltip',
+                            opacity: 0.95
+                        });
+                    }
+
+                    polygon.on('click', function() {
+                        if (window.AndroidMapBridge && window.AndroidMapBridge.territoryClicked) {
+                            window.AndroidMapBridge.territoryClicked(t.id);
+                        }
+                    });
+
+                    territoriesLayerGroup.addLayer(polygon);
+                });
+            } catch (e) {
+                console.error("Failed to render territories: ", e);
+            }
+        };
+
+        window.clearTerritories = function() {
+            if (territoriesLayerGroup) {
+                territoriesLayerGroup.clearLayers();
+            }
+        };
+
+        // Phase 9: Render New Traversed Hex Cells
+        window.renderNewRunCells = function(hexPolygonsJson, colorHex) {
+            if (!map || !newCellsLayerGroup) return;
+            newCellsLayerGroup.clearLayers();
+            try {
+                var hexList = typeof hexPolygonsJson === 'string' ? JSON.parse(hexPolygonsJson) : hexPolygonsJson;
+                if (!Array.isArray(hexList)) return;
+                var color = colorHex || '#00F0FF';
+
+                hexList.forEach(function(hexCoords, idx) {
+                    if (!Array.isArray(hexCoords) || hexCoords.length < 3) return;
+                    var latLngs = hexCoords.map(function(c) {
+                        return [c.latitude !== undefined ? c.latitude : c.lat, c.longitude !== undefined ? c.longitude : c.lng];
+                    });
+
+                    var hexPoly = L.polygon(latLngs, {
+                        color: color,
+                        weight: 2,
+                        opacity: 0.9,
+                        fillColor: color,
+                        fillOpacity: 0.25,
+                        dashArray: '4, 4'
+                    });
+
+                    hexPoly.bindTooltip('<span style="color:' + color + '; font-weight:800;">HEX #' + (idx + 1) + '</span>', {
+                        direction: 'center',
+                        className: 'territory-tooltip',
+                        opacity: 0.9
+                    });
+
+                    newCellsLayerGroup.addLayer(hexPoly);
+                });
+            } catch (e) {
+                console.error("Failed to render new run cells: ", e);
+            }
+        };
+
+        // Phase 9: Render Expansion Preview Overlay
+        window.renderExpansionPreview = function(previewPolygonsJson, colorHex) {
+            if (!map || !expansionPreviewLayerGroup) return;
+            expansionPreviewLayerGroup.clearLayers();
+            try {
+                var polygons = typeof previewPolygonsJson === 'string' ? JSON.parse(previewPolygonsJson) : previewPolygonsJson;
+                if (!Array.isArray(polygons)) return;
+                var color = colorHex || '#CCFF00';
+
+                polygons.forEach(function(coords) {
+                    if (!Array.isArray(coords) || coords.length < 3) return;
+                    var latLngs = coords.map(function(c) {
+                        return [c.latitude !== undefined ? c.latitude : c.lat, c.longitude !== undefined ? c.longitude : c.lng];
+                    });
+
+                    var previewPoly = L.polygon(latLngs, {
+                        color: color,
+                        weight: 3.5,
+                        opacity: 1.0,
+                        fillColor: color,
+                        fillOpacity: 0.4,
+                        dashArray: '6, 6'
+                    });
+
+                    previewPoly.bindTooltip('<span style="color:' + color + '; font-weight:900;">◈ EXPANSION PREVIEW</span>', {
+                        permanent: false,
+                        direction: 'center',
+                        className: 'territory-tooltip',
+                        opacity: 0.95
+                    });
+
+                    expansionPreviewLayerGroup.addLayer(previewPoly);
+                });
+            } catch (e) {
+                console.error("Failed to render expansion preview: ", e);
+            }
+        };
+
+        // Phase 9: Render Confirmed Territory
+        window.renderConfirmedTerritory = function(territoryJson, colorHex) {
+            if (!map || !confirmedTerritoryLayerGroup) return;
+            confirmedTerritoryLayerGroup.clearLayers();
+            try {
+                var t = typeof territoryJson === 'string' ? JSON.parse(territoryJson) : territoryJson;
+                if (!t || !t.coordinates || t.coordinates.length < 3) return;
+
+                var latLngs = t.coordinates.map(function(c) {
+                    return [c.latitude !== undefined ? c.latitude : c.lat, c.longitude !== undefined ? c.longitude : c.lng];
+                });
+
+                var color = colorHex || t.colorHex || '#CCFF00';
+
+                var confirmedPoly = L.polygon(latLngs, {
+                    color: color,
+                    weight: 4,
+                    opacity: 1.0,
+                    fillColor: color,
+                    fillOpacity: 0.45
+                });
+
+                var name = t.name || 'CONFIRMED SECTOR';
+                var areaFormatted = t.areaSqMeters ? (Math.round(t.areaSqMeters) + ' m²') : '';
+                confirmedPoly.bindTooltip('<span style="color:' + color + '; font-weight:900;">★ ' + name + '</span><br/><span style="font-size:9px; color:#A0AEC0;">' + areaFormatted + '</span>', {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'territory-tooltip',
+                    opacity: 0.95
+                });
+
+                confirmedTerritoryLayerGroup.addLayer(confirmedPoly);
+            } catch (e) {
+                console.error("Failed to render confirmed territory: ", e);
+            }
+        };
+
+        // Phase 9: Clear Expansion Layers
+        window.clearExpansionLayers = function() {
+            if (newCellsLayerGroup) newCellsLayerGroup.clearLayers();
+            if (expansionPreviewLayerGroup) expansionPreviewLayerGroup.clearLayers();
+            if (confirmedTerritoryLayerGroup) confirmedTerritoryLayerGroup.clearLayers();
+        };
+
+        window.fitBoundsToPoints = function(pointsJson) {
+            if (!map) return;
+            try {
+                var points = typeof pointsJson === 'string' ? JSON.parse(pointsJson) : pointsJson;
+                if (!Array.isArray(points) || points.length === 0) return;
+                var latLngs = points.map(function(p) {
+                    return [p.latitude !== undefined ? p.latitude : p.lat, p.longitude !== undefined ? p.longitude : p.lng];
+                });
+                var bounds = L.latLngBounds(latLngs);
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18, animate: true });
+            } catch (e) {
+                console.error("Failed to fit bounds: ", e);
+            }
+        };
+
+        window.updateRoute = function(pointsJson, colorHex) {
+            if (!map) return;
+            try {
+                var points = typeof pointsJson === 'string' ? JSON.parse(pointsJson) : pointsJson;
+                if (!Array.isArray(points) || points.length < 2) {
+                    if (points && points.length === 0) {
+                        window.clearRoute();
+                    }
+                    return;
+                }
+
+                var latLngs = points.map(function(p) {
+                    return [p.latitude !== undefined ? p.latitude : p.lat, p.longitude !== undefined ? p.longitude : p.lng];
+                });
+
+                var strokeColor = colorHex || '#CCFF00';
+
+                // Render outer glow polyline
+                if (!activeRouteGlowPolyline) {
+                    activeRouteGlowPolyline = L.polyline(latLngs, {
+                        color: strokeColor,
+                        weight: 8,
+                        opacity: 0.35,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    }).addTo(map);
+                } else {
+                    activeRouteGlowPolyline.setLatLngs(latLngs);
+                    activeRouteGlowPolyline.setStyle({ color: strokeColor });
+                }
+
+                // Render core neon polyline
+                if (!activeRoutePolyline) {
+                    activeRoutePolyline = L.polyline(latLngs, {
+                        color: strokeColor,
+                        weight: 4,
+                        opacity: 1.0,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    }).addTo(map);
+                } else {
+                    activeRoutePolyline.setLatLngs(latLngs);
+                    activeRoutePolyline.setStyle({ color: strokeColor });
+                }
+            } catch (e) {
+                console.error("Failed to update route: ", e);
+            }
+        };
+
+        window.clearRoute = function() {
+            if (activeRouteGlowPolyline && map) {
+                map.removeLayer(activeRouteGlowPolyline);
+                activeRouteGlowPolyline = null;
+            }
+            if (activeRoutePolyline && map) {
+                map.removeLayer(activeRoutePolyline);
+                activeRoutePolyline = null;
+            }
+        };
+
+        window.setTileLayer = function(tileUrl, subdomains, maxZoom, attribution) {
+            if (!map) return;
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+
+            var sub = subdomains || DEFAULT_SUBDOMAINS;
+            var maxZ = maxZoom || 19;
+            var attr = attribution || DEFAULT_ATTRIBUTION;
+
+            currentTileLayer = L.tileLayer(tileUrl, {
+                subdomains: sub,
+                maxZoom: maxZ,
+                attribution: attr
+            });
+
+            currentTileLayer.on('loading', function() {
+                if (window.AndroidMapBridge && window.AndroidMapBridge.tileLoading) {
+                    window.AndroidMapBridge.tileLoading();
+                }
+            });
+
+            currentTileLayer.on('load', function() {
+                if (window.AndroidMapBridge && window.AndroidMapBridge.tileLoaded) {
+                    window.AndroidMapBridge.tileLoaded();
+                }
+            });
+
+            currentTileLayer.on('tileerror', function(errorEvent) {
+                if (window.AndroidMapBridge && window.AndroidMapBridge.tileError) {
+                    window.AndroidMapBridge.tileError("Tile failed to load: " + (errorEvent.coords ? (errorEvent.coords.z + '/' + errorEvent.coords.x + '/' + errorEvent.coords.y) : "network"));
+                }
+            });
+
+            currentTileLayer.addTo(map);
+        };
+
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initMap);
+        } else {
+            initMap();
+        }
+    </script>
+</body>
+</html>
