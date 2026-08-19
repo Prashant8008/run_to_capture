@@ -2,7 +2,9 @@ package com.example.feature.map.components
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.view.View
 import android.view.ViewGroup
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -15,6 +17,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.feature.map.bridge.LeafletBridge
 import com.example.feature.map.bridge.MapEventListener
 
@@ -26,14 +31,17 @@ fun LeafletMapView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
     val webView = remember {
         WebView(context).apply {
-            setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             setBackgroundColor(0xFFE2E8F0.toInt())
+            isVerticalScrollBarEnabled = false
+            isHorizontalScrollBarEnabled = false
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -43,6 +51,7 @@ fun LeafletMapView(
                 useWideViewPort = true
                 cacheMode = WebSettings.LOAD_DEFAULT
                 databaseEnabled = true
+                mediaPlaybackRequiresUserGesture = false
             }
         }
     }
@@ -58,6 +67,21 @@ fun LeafletMapView(
         bridge.setEventListener(eventListener)
         onDispose {
             bridge.setEventListener(null)
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, webView) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> webView.onResume()
+                Lifecycle.Event.ON_PAUSE -> webView.onPause()
+                else -> {}
+            }
+        }
+        val lifecycle = lifecycleOwner.lifecycle
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
         }
     }
 
@@ -83,6 +107,20 @@ fun LeafletMapView(
                 if (request?.isForMainFrame == true) {
                     eventListener.onTileError(description)
                 }
+            }
+
+            override fun onRenderProcessGone(
+                view: WebView?,
+                detail: RenderProcessGoneDetail?
+            ): Boolean {
+                // Prevent app termination when Chromium renderer process terminates
+                try {
+                    view?.let { wv ->
+                        (wv.parent as? ViewGroup)?.removeView(wv)
+                        wv.destroy()
+                    }
+                } catch (_: Exception) {}
+                return true
             }
         }
 

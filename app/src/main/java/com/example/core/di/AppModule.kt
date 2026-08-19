@@ -23,6 +23,10 @@ import java.io.IOException
 
 class AppModule(private val context: Context) {
 
+    init {
+        NetworkModule.authTokenProvider = { secureStorage.accessToken }
+    }
+
     val secureStorage: SecureStorage by lazy {
         SecureStorage(context)
     }

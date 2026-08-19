@@ -1,5 +1,5 @@
 {
-  "name": "Remix Run2Capture",
+  "name": "Run2Capture",
   "description": "Multiplayer real-time territory-control game using GPS tracking, polygon capture algorithms, and interactive maps.",
   "requestFramePermissions": [],
   "majorCapabilities": [

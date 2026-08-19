@@ -295,7 +295,6 @@ class WorldMapRobolectricTest {
         // Verify Bottom Navigation & START RUN CTA
         composeTestRule.onNodeWithTag("bottom_map_hud").assertIsDisplayed()
         composeTestRule.onNodeWithTag("start_run_button").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("nav_radar_tab").assertIsDisplayed()
         composeTestRule.onNodeWithTag("nav_forge_tab").assertIsDisplayed()
         composeTestRule.onNodeWithTag("nav_operative_tab").assertIsDisplayed()
     }

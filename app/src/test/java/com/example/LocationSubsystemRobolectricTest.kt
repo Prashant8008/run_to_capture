@@ -436,6 +436,8 @@ class LocationSubsystemRobolectricTest {
                 onNavigateToIdentity = {}
             )
         }
+        
+        composeTestRule.waitForIdle()
 
         // Before start: bottom hud with start button
         composeTestRule.onNodeWithTag("start_run_button").assertIsDisplayed()

@@ -29,48 +29,86 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        /* Tactical player marker with animated pulse */
+        /* Tactical Operative Runner Sticker Marker */
         .player-marker-container {
             position: relative;
-            width: 32px;
-            height: 32px;
+            width: 48px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
-            pointer-events: none;
+            pointer-events: auto;
         }
 
         .player-marker-pulse {
             position: absolute;
-            width: 32px;
-            height: 32px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            background: rgba(204, 255, 0, 0.35);
+            background: rgba(0, 229, 255, 0.4);
             animation: radar-pulse 2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
-        }
-
-        .player-marker-core {
-            position: relative;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #CCFF00;
-            border: 2px solid #0C0E12;
-            box-shadow: 0 0 10px #CCFF00;
-            z-index: 2;
-            transition: background-color 0.3s ease;
+            pointer-events: none;
         }
 
         .player-marker-heading {
             position: absolute;
-            top: -6px;
+            top: -10px;
             width: 0;
             height: 0;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-bottom: 8px solid #CCFF00;
-            transform-origin: 50% 16px;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 10px solid #00F0FF;
+            filter: drop-shadow(0 0 4px #00F0FF);
+            transform-origin: 50% 24px;
+            z-index: 4;
+            pointer-events: none;
+            transition: transform 0.2s ease;
+        }
+
+        /* 3D-styled Operative Runner Sticker Badge */
+        .player-sticker-badge {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00F0FF 0%, #0284C7 100%);
+            border: 2.5px solid #FFFFFF;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22), 0 0 16px rgba(0, 240, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             z-index: 3;
+            transition: transform 0.15s ease;
+            cursor: pointer;
+        }
+
+        .player-sticker-badge:hover, .player-sticker-badge:active {
+            transform: scale(1.12);
+        }
+
+        .player-sticker-svg {
+            width: 20px;
+            height: 20px;
+            fill: #FFFFFF;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+
+        /* Micro name tag badge floating over player marker */
+        .player-nametag {
+            position: absolute;
+            top: -24px;
+            background: rgba(15, 23, 42, 0.85);
+            color: #FFFFFF;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 240, 255, 0.5);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 5;
         }
 
         @keyframes radar-pulse {
@@ -79,11 +117,11 @@
                 opacity: 0.9;
             }
             70% {
-                transform: scale(1.8);
+                transform: scale(1.7);
                 opacity: 0.1;
             }
             100% {
-                transform: scale(2.2);
+                transform: scale(2.0);
                 opacity: 0;
             }
         }
@@ -173,8 +211,36 @@
                 expansionPreviewLayerGroup = L.layerGroup().addTo(map);
                 confirmedTerritoryLayerGroup = L.layerGroup().addTo(map);
 
-                // Setup default dark tactical tile layer
+                // Setup default tactical tile layer
                 setTileLayer(DEFAULT_TILE_URL, DEFAULT_SUBDOMAINS, 19, DEFAULT_ATTRIBUTION);
+
+                // Add aesthetic baseline sectors matching tactical preview
+                try {
+                    var purplePoly = L.polygon([
+                        [37.7788, -122.4172],
+                        [37.7818, -122.4132],
+                        [37.7745, -122.4108],
+                        [37.7712, -122.4152]
+                    ], {
+                        color: '#8B5CF6',
+                        weight: 3.5,
+                        dashArray: '8, 8',
+                        fillColor: '#8B5CF6',
+                        fillOpacity: 0.28
+                    }).addTo(territoriesLayerGroup);
+
+                    var cyanPoly = L.polygon([
+                        [37.7682, -122.4215],
+                        [37.7725, -122.4175],
+                        [37.7668, -122.4132],
+                        [37.7638, -122.4182]
+                    ], {
+                        color: '#00F0FF',
+                        weight: 4.0,
+                        fillColor: '#00F0FF',
+                        fillOpacity: 0.22
+                    }).addTo(territoriesLayerGroup);
+                } catch(e) {}
 
                 // Map move and zoom events
                 map.on('moveend', function() {
@@ -243,25 +309,54 @@
         window.setUserLocation = function(lat, lng, accuracy, heading, colorHex) {
             if (!map) return;
             var latLng = [lat, lng];
-            var accentColor = colorHex || '#CCFF00';
+            var accentColor = colorHex || '#00E5FF';
+
+            // Running Athlete / Operative SVG silhouette
+            var runnerSvg = '<svg class="player-sticker-svg" viewBox="0 0 24 24">' +
+                            '<path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>' +
+                            '</svg>';
+
+            var headingHtml = (heading !== undefined && heading !== null && heading >= 0)
+                ? '<div class="player-marker-heading" style="transform: rotate(' + heading + 'deg);"></div>'
+                : '';
 
             // Create or update player marker
             if (!playerMarker) {
                 var iconHtml = '<div class="player-marker-container" id="player-container">' +
-                               '<div class="player-marker-pulse" style="background: ' + accentColor + '33;"></div>' +
-                               '<div class="player-marker-core" style="background: ' + accentColor + '; box-shadow: 0 0 10px ' + accentColor + ';"></div>' +
+                               '<div class="player-nametag">YOU</div>' +
+                               '<div class="player-marker-pulse"></div>' +
+                               headingHtml +
+                               '<div class="player-sticker-badge">' +
+                               runnerSvg +
+                               '</div>' +
                                '</div>';
 
                 var icon = L.divIcon({
                     className: 'custom-player-marker',
                     html: iconHtml,
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 16]
+                    iconSize: [48, 48],
+                    iconAnchor: [24, 24]
                 });
 
                 playerMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
             } else {
                 playerMarker.setLatLng(latLng);
+                var container = document.getElementById('player-container');
+                if (container) {
+                    var headingEl = container.querySelector('.player-marker-heading');
+                    if (heading !== undefined && heading !== null && heading >= 0) {
+                        if (!headingEl) {
+                            var newHeading = document.createElement('div');
+                            newHeading.className = 'player-marker-heading';
+                            newHeading.style.transform = 'rotate(' + heading + 'deg)';
+                            container.appendChild(newHeading);
+                        } else {
+                            headingEl.style.transform = 'rotate(' + heading + 'deg)';
+                        }
+                    } else if (headingEl) {
+                        headingEl.remove();
+                    }
+                }
             }
 
             // Update accuracy circle

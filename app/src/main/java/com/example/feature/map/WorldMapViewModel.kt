@@ -476,20 +476,20 @@ class WorldMapViewModel(
 
     fun toggleDevTerritories() {
         val nextActive = !_uiState.value.isDevTerritoryOverlayActive
-        _uiState.update { it.copy(isDevTerritoryOverlayActive = nextActive) }
+        val center = _uiState.value.userLocation?.toLatLng ?: _uiState.value.centerLocation
+        val sampleSectors = generateDevTerritories(center.latitude, center.longitude)
 
         if (nextActive) {
-            val center = _uiState.value.userLocation?.toLatLng ?: _uiState.value.centerLocation
-            if (_uiState.value.devTerritories.isEmpty()) {
-                val sampleSectors = generateDevTerritories(center.latitude, center.longitude)
+            _uiState.update { it.copy(isDevTerritoryOverlayActive = true, devTerritories = sampleSectors) }
+            if (territoryRepository != null) {
                 viewModelScope.launch {
-                    territoryRepository?.seedMockTerritories(sampleSectors)
+                    territoryRepository.seedMockTerritories(sampleSectors)
                 }
             } else {
-                mapController?.renderTerritories(_uiState.value.devTerritories)
+                mapController?.renderTerritories(sampleSectors)
             }
         } else {
-            _uiState.update { it.copy(selectedDevTerritory = null) } // Keep list in memory or clear map
+            _uiState.update { it.copy(isDevTerritoryOverlayActive = false, devTerritories = emptyList(), selectedDevTerritory = null) }
             mapController?.clearTerritories()
         }
     }
@@ -560,13 +560,18 @@ class WorldMapViewModel(
         }
 
         if (_uiState.value.isDevTerritoryOverlayActive) {
-            if (_uiState.value.devTerritories.isEmpty()) {
-                val sampleSectors = generateDevTerritories(targetLat, targetLng)
+            val sampleSectors = if (_uiState.value.devTerritories.isEmpty()) {
+                generateDevTerritories(targetLat, targetLng)
+            } else {
+                _uiState.value.devTerritories
+            }
+            _uiState.update { it.copy(devTerritories = sampleSectors) }
+            if (territoryRepository != null) {
                 viewModelScope.launch {
-                    territoryRepository?.seedMockTerritories(sampleSectors)
+                    territoryRepository.seedMockTerritories(sampleSectors)
                 }
             } else {
-                mapController?.renderTerritories(_uiState.value.devTerritories)
+                mapController?.renderTerritories(sampleSectors)
             }
         }
     }

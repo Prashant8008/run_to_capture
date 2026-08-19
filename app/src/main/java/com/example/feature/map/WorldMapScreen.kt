@@ -153,7 +153,7 @@ fun WorldMapScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // 2. Top HUD Overlay
+        // 2. Top HUD Overlay: Sleek Glassmorphic Floating Profile Pill
         TopMapHud(
             uiState = uiState,
             onNotificationClick = { viewModel.openNotificationModal() },
@@ -161,14 +161,14 @@ fun WorldMapScreen(
                 .align(Alignment.TopCenter)
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         )
 
         // 3. Tile Loading / Error Banner Overlay / GPS Accuracy Banner
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 80.dp),
+                .padding(top = 84.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -188,95 +188,34 @@ fun WorldMapScreen(
             }
         }
 
-        // 4. Floating Map & Location Controls (Right side)
+        // 4. Floating Map & Location Controls (Right side - Sleek Rounded White Cards)
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.End
         ) {
-            // Notification Button
-            Box {
-                MapControlIconButton(
-                    icon = Icons.Default.Notifications,
-                    contentDescription = "Notifications",
-                    onClick = onNavigateToNotifications,
-                    testTag = "notifications_button"
-                )
-                if (uiState.unreadNotificationCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 4.dp, y = (-4).dp)
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(ColorApexRed),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (uiState.unreadNotificationCount > 9) "9+" else uiState.unreadNotificationCount.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-
-            // Competitive Button
-            MapControlIconButton(
-                icon = Icons.Default.EmojiEvents,
-                contentDescription = "Leaderboards & Challenges",
-                onClick = onNavigateToCompetitive,
-                testTag = "competitive_button"
-            )
-
-            // Map Layer Selector Button (Street / Satellite / Dark)
-            MapControlIconButton(
-                icon = Icons.Default.Map,
-                contentDescription = "Select Map View (Street / Satellite / Dark)",
-                isActive = uiState.showLayerSelectorModal,
-                activeColor = ColorElectricLime,
-                onClick = { viewModel.toggleLayerSelector() },
-                testTag = "map_layer_selector_button"
-            )
-
-            // Dev Territories Toggle Button
-            MapControlIconButton(
-                icon = Icons.Default.Layers,
-                contentDescription = "Toggle Development Sectors",
-                isActive = uiState.isDevTerritoryOverlayActive,
-                activeColor = ColorElectricLime,
-                onClick = { viewModel.toggleDevTerritories() },
-                testTag = "dev_territories_toggle_button"
-            )
-
             // Recenter on Player GPS Location
-            MapControlIconButton(
-                icon = if (uiState.isFollowingUser) Icons.Default.MyLocation else Icons.Default.GpsNotFixed,
+            MapControlCardButton(
+                icon = Icons.Default.MyLocation,
                 contentDescription = "Center on GPS Location",
-                isActive = uiState.isFollowingUser,
-                activeColor = ColorCipherCyan,
                 onClick = { viewModel.centerOnUser() },
                 testTag = "recenter_location_button"
             )
 
-            // Zoom In Button
-            MapControlIconButton(
-                icon = Icons.Default.Add,
-                contentDescription = "Zoom In",
-                onClick = { viewModel.zoomIn() },
-                testTag = "map_zoom_in_button"
+            // Map Layer Selector Button
+            MapControlCardButton(
+                icon = Icons.Default.Layers,
+                contentDescription = "Select Map View Layers",
+                onClick = { viewModel.toggleLayerSelector() },
+                testTag = "map_layer_selector_button"
             )
 
-            // Zoom Out Button
-            MapControlIconButton(
-                icon = Icons.Default.Remove,
-                contentDescription = "Zoom Out",
-                onClick = { viewModel.zoomOut() },
-                testTag = "map_zoom_out_button"
+            // Combined Zoom In / Zoom Out Card
+            MapZoomControlCard(
+                onZoomIn = { viewModel.zoomIn() },
+                onZoomOut = { viewModel.zoomOut() }
             )
         }
 
@@ -314,8 +253,9 @@ fun WorldMapScreen(
         ) {
             BottomMapHud(
                 onStartRunClick = { viewModel.openRunPreparation() },
-                onNavigateToCustomization = onNavigateToCustomization,
-                onNavigateToIdentity = onNavigateToIdentity,
+                onNavigateToBattles = onNavigateToCompetitive,
+                onNavigateToRank = onNavigateToCompetitive,
+                onNavigateToProfile = onNavigateToIdentity,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -435,85 +375,88 @@ private fun TopMapHud(
     onNotificationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(ColorDarkCard.copy(alpha = 0.92f))
-            .border(1.dp, RunColors.CardBorder, RoundedCornerShape(16.dp))
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Player Profile & Faction Badge
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(android.graphics.Color.parseColor(uiState.territoryColorHex)).copy(alpha = 0.2f))
-                    .border(1.5.dp, Color(android.graphics.Color.parseColor(uiState.territoryColorHex)), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Security,
-                    contentDescription = "Faction Icon",
-                    tint = Color(android.graphics.Color.parseColor(uiState.territoryColorHex)),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+    val displayCallsign = if (uiState.username.isNotBlank()) uiState.username else "PKCH92277"
+    val initials = if (displayCallsign.length >= 2) displayCallsign.take(2).uppercase() else "PK"
 
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+    Box(
+        modifier = modifier
+            .testTag("top_map_hud")
+            .shadow(6.dp, RoundedCornerShape(50))
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xE6F0F5F2))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(50))
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Player Profile Avatar + Callsign & Mini XP Bar
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Circle Avatar with initials
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE0F7FA))
+                        .border(1.5.dp, Color(0xFF00E5FF), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = uiState.username.uppercase(),
-                        color = ColorTextPrimary,
-                        fontSize = 13.sp,
+                        text = initials,
+                        color = Color(0xFF0284C7),
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "LVL ${uiState.playerLevel}",
-                        color = ColorElectricLime,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = FontFamily.SansSerif
                     )
                 }
 
-                Spacer(modifier = Modifier.height(2.dp))
-                // Progress Bar
-                LinearProgressIndicator(
-                    progress = { uiState.playerXpProgress },
-                    modifier = Modifier
-                        .width(110.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
-                    color = ColorElectricLime,
-                    trackColor = ColorDarkSurfaceElevated,
-                )
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = displayCallsign.uppercase(),
+                            color = Color(0xFF111827),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.SansSerif,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "LVL ${uiState.playerLevel}",
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = FontFamily.SansSerif,
+                            modifier = Modifier.testTag("player_level_badge")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+                    // Mini XP bar
+                    LinearProgressIndicator(
+                        progress = { uiState.playerXpProgress },
+                        modifier = Modifier
+                            .width(96.dp)
+                            .height(3.5.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = Color(0xFFD2F834),
+                        trackColor = Color(0xFFE2E8F0),
+                    )
+                }
             }
-        }
 
-        // GPS Telemetry Pill & Notification Center
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // GPS Status Pill
-            GpsStatusPill(status = uiState.gpsStatus)
-
-            // Notifications Icon
+            // Notification Bell with badge dot
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(38.dp)
                     .clip(CircleShape)
-                    .background(ColorDarkSurfaceElevated)
-                    .border(1.dp, RunColors.CardBorder, CircleShape)
                     .clickable { onNotificationClick() }
                     .testTag("notification_button"),
                 contentAlignment = Alignment.Center
@@ -521,50 +464,21 @@ private fun TopMapHud(
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Tactical Notifications",
-                    tint = ColorTextPrimary,
-                    modifier = Modifier.size(18.dp)
+                    tint = Color(0xFF475569),
+                    modifier = Modifier.size(22.dp)
                 )
-                if (uiState.unreadNotificationsCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(ColorApexRed)
-                    )
-                }
+                // Notification indicator dot (lime)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-2).dp, y = 2.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF84CC16))
+                        .border(1.dp, Color.White, CircleShape)
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun GpsStatusPill(status: GpsSignalStatus) {
-    val pillColor = if (status.isGood) ColorCipherCyan else Color(0xFFFF9500)
-    val dotColor = if (status.isGood) ColorElectricLime else Color(0xFFFF3B30)
-
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(ColorDarkSurfaceElevated)
-            .border(1.dp, pillColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(dotColor)
-        )
-        Text(
-            text = status.label,
-            color = pillColor,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
-        )
     }
 }
 
@@ -578,22 +492,22 @@ private fun TileStatusBanner(
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(ColorDarkCard.copy(alpha = 0.9f))
-                .border(1.dp, ColorCipherCyan.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                .background(Color(0xEEFFFFFF))
+                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             CircularProgressIndicator(
-                color = ColorCipherCyan,
+                color = Color(0xFF0284C7),
                 strokeWidth = 2.dp,
                 modifier = Modifier.size(14.dp)
             )
             Text(
-                text = "STREAMING RADAR TILES...",
-                color = ColorCipherCyan,
+                text = "LOADING MAP TILES...",
+                color = Color(0xFF1E293B),
                 fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -601,8 +515,8 @@ private fun TileStatusBanner(
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(ColorApexRed.copy(alpha = 0.2f))
-                .border(1.dp, ColorApexRed, RoundedCornerShape(12.dp))
+                .background(Color(0xFFFEE2E2))
+                .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
                 .clickable { onRetry() }
                 .padding(horizontal = 12.dp, vertical = 6.dp)
                 .testTag("tile_error_banner"),
@@ -612,14 +526,14 @@ private fun TileStatusBanner(
             Icon(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = "Retry Map Load",
-                tint = ColorApexRed,
+                tint = Color(0xFFEF4444),
                 modifier = Modifier.size(14.dp)
             )
             Text(
                 text = "TILE LINK DISRUPTED • TAP TO RETRY",
-                color = ColorApexRed,
+                color = Color(0xFFDC2626),
                 fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -627,25 +541,19 @@ private fun TileStatusBanner(
 }
 
 @Composable
-private fun MapControlIconButton(
+private fun MapControlCardButton(
     icon: ImageVector,
     contentDescription: String,
-    isActive: Boolean = false,
-    activeColor: Color = ColorCipherCyan,
     onClick: () -> Unit,
     testTag: String
 ) {
     Box(
         modifier = Modifier
-            .size(44.dp)
-            .shadow(6.dp, CircleShape)
-            .clip(CircleShape)
-            .background(if (isActive) activeColor.copy(alpha = 0.25f) else ColorDarkCard.copy(alpha = 0.95f))
-            .border(
-                1.5.dp,
-                if (isActive) activeColor else RunColors.CardBorder,
-                CircleShape
-            )
+            .size(48.dp)
+            .shadow(4.dp, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(14.dp))
             .clickable { onClick() }
             .testTag(testTag),
         contentAlignment = Alignment.Center
@@ -653,114 +561,247 @@ private fun MapControlIconButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (isActive) activeColor else ColorTextPrimary,
-            modifier = Modifier.size(20.dp)
+            tint = Color(0xFF1E293B),
+            modifier = Modifier.size(22.dp)
         )
+    }
+}
+
+@Composable
+private fun MapZoomControlCard(
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(48.dp)
+            .shadow(4.dp, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(14.dp)),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clickable { onZoomIn() }
+                .testTag("map_zoom_in_button"),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Zoom In",
+                tint = Color(0xFF1E293B),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color(0xFFF1F5F9))
+        )
+
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clickable { onZoomOut() }
+                .testTag("map_zoom_out_button"),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Remove,
+                contentDescription = "Zoom Out",
+                tint = Color(0xFF1E293B),
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
 @Composable
 private fun BottomMapHud(
     onStartRunClick: () -> Unit,
-    onNavigateToCustomization: () -> Unit,
-    onNavigateToIdentity: () -> Unit,
+    onNavigateToBattles: () -> Unit,
+    onNavigateToRank: () -> Unit,
+    onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Column(
         modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .testTag("bottom_map_hud")
+            .padding(bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
+        // Pill: RUN · EXPAND · CAPTURE
+        Box(
+            modifier = Modifier
+                .shadow(4.dp, RoundedCornerShape(50))
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xE6F1F5F3))
+                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(50))
+                .padding(horizontal = 22.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "RUN  ·  EXPAND  ·  CAPTURE",
+                color = Color(0xFF1E293B),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.SansSerif,
+                letterSpacing = 1.6.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Neon Lime START RUN Primary Pill Button
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(ColorDarkCard.copy(alpha = 0.96f))
-                .border(1.dp, RunColors.CardBorder, RoundedCornerShape(20.dp))
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 20.dp)
+                .height(56.dp)
+                .shadow(6.dp, RoundedCornerShape(50))
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFFD2F834))
+                .clickable { onStartRunClick() }
+                .testTag("start_run_button"),
+            contentAlignment = Alignment.Center
         ) {
-            // Identity / Profile Navigation
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable { onNavigateToIdentity() }
-                    .padding(8.dp)
-                    .testTag("nav_identity_button")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Operative Profile",
-                    tint = ColorTextSecondary,
-                    modifier = Modifier.size(22.dp)
+                    imageVector = Icons.Default.DirectionsRun,
+                    contentDescription = "Start Run",
+                    tint = Color(0xFF111827),
+                    modifier = Modifier.size(24.dp)
                 )
-                Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = "PROFILE",
-                    color = ColorTextSecondary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    text = "START RUN",
+                    color = Color(0xFF111827),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.SansSerif,
+                    letterSpacing = 1.2.sp
                 )
             }
+        }
 
-            // Central High-Contrast START RUN Trigger
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(ColorElectricLime, ColorCipherCyan)
-                        )
-                    )
-                    .clickable { onStartRunClick() }
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
-                    .testTag("start_run_button"),
-                contentAlignment = Alignment.Center
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Floating Bottom Navigation Bar (MAP, BATTLES, RANK, PROFILE)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .shadow(8.dp, RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFFF6F8F6))
+                .border(1.dp, Color(0xFFE5EBE5), RoundedCornerShape(24.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // MAP (Active tab)
                 Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFFDFEADE))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DirectionsRun,
-                        contentDescription = "Start Run",
-                        tint = ColorDarkBackground,
-                        modifier = Modifier.size(22.dp)
+                        imageVector = Icons.Default.Map,
+                        contentDescription = "Map View",
+                        tint = Color(0xFF1B4332),
+                        modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "START RUN",
-                        color = ColorDarkBackground,
-                        fontSize = 14.sp,
+                        text = "MAP",
+                        color = Color(0xFF1B4332),
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 1.sp
+                        fontFamily = FontFamily.SansSerif
                     )
                 }
-            }
 
-            // Customization Navigation
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable { onNavigateToCustomization() }
-                    .padding(8.dp)
-                    .testTag("nav_customization_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Customize Operative Loadout",
-                    tint = ColorTextSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = "LOADOUT",
-                    color = ColorTextSecondary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
+                // BATTLES
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { onNavigateToBattles() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .testTag("nav_battles_tab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = "Battles",
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "BATTLES",
+                        color = Color(0xFF64748B),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                }
+
+                // RANK
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { onNavigateToRank() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .testTag("nav_rank_tab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EmojiEvents,
+                        contentDescription = "Rank",
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "RANK",
+                        color = Color(0xFF64748B),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                }
+
+                // PROFILE
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { onNavigateToProfile() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .testTag("nav_profile_tab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile",
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "PROFILE",
+                        color = Color(0xFF64748B),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                }
             }
         }
     }

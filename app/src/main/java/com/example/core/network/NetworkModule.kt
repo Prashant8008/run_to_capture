@@ -1,7 +1,9 @@
 package com.example.core.network
 
+import com.example.BuildConfig
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -10,8 +12,11 @@ import java.util.concurrent.TimeUnit
 
 object NetworkModule {
 
-    // Default development base URL for local testing or android emulator host
-    var baseUrl: String = "http://10.0.2.2:8000/"
+    // Default production HTTPS API endpoint
+    var baseUrl: String = "https://api.run2capture.com/v1/"
+
+    // Injected token provider for Authorization Bearer header
+    var authTokenProvider: (() -> String?)? = null
 
     val moshi: Moshi by lazy {
         Moshi.Builder()
@@ -19,15 +24,35 @@ object NetworkModule {
             .build()
     }
 
+    private val authInterceptor = Interceptor { chain ->
+        val original = chain.request()
+        val token = authTokenProvider?.invoke()
+        val requestBuilder = original.newBuilder()
+            .header("Accept", "application/json")
+            .header("User-Agent", "Run2Capture-Android/${BuildConfig.VERSION_NAME}")
+
+        if (!token.isNullOrBlank()) {
+            requestBuilder.header("Authorization", "Bearer $token")
+        }
+
+        chain.proceed(requestBuilder.build())
+    }
+
     val okHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
         OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
             .addInterceptor(logging)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
     }
 
@@ -45,3 +70,4 @@ object NetworkModule {
         createApiService(baseUrl)
     }
 }
+
