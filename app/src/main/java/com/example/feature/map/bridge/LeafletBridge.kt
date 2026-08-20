@@ -19,6 +19,7 @@ import java.lang.ref.WeakReference
  */
 interface LeafletMapController {
     fun setCenter(lat: Double, lng: Double, animated: Boolean = true)
+    fun flyTo(lat: Double, lng: Double, zoom: Int = 16, durationSec: Double = 1.2)
     fun setZoom(zoom: Int, animated: Boolean = true)
     fun setUserLocation(lat: Double, lng: Double, accuracy: Float = 0f, heading: Float? = null, colorHex: String? = null)
     fun renderTerritories(territories: List<DevTerritory>)
@@ -69,6 +70,10 @@ class LeafletBridge(
 
     override fun setCenter(lat: Double, lng: Double, animated: Boolean) {
         evaluateJavascript("window.setCenter($lat, $lng, $animated);")
+    }
+
+    override fun flyTo(lat: Double, lng: Double, zoom: Int, durationSec: Double) {
+        evaluateJavascript("window.flyTo($lat, $lng, $zoom, $durationSec);")
     }
 
     override fun setZoom(zoom: Int, animated: Boolean) {

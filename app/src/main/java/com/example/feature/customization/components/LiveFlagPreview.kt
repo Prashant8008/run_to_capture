@@ -47,9 +47,9 @@ fun LiveFlagPreview(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ColorDarkCard)
-            .border(1.dp, Color(0xFF272D38), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFAFBF9).copy(alpha = 0.95f))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
             .padding(14.dp)
             .testTag("live_flag_preview")
     ) {
@@ -70,13 +70,13 @@ fun LiveFlagPreview(
                     Icon(
                         imageVector = Icons.Default.Flag,
                         contentDescription = null,
-                        tint = ColorElectricLime,
+                        tint = Color(0xFF659900),
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = "STANDARD // LIVE FLAG BANNER",
                         style = MaterialTheme.typography.labelSmall,
-                        color = ColorElectricLime,
+                        color = Color(0xFF659900),
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
@@ -85,7 +85,7 @@ fun LiveFlagPreview(
                 Text(
                     text = "${flag.patternEnum.displayName.uppercase()} // ${flag.emblemEnum.displayName.uppercase()}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = ColorTextSecondary
+                    color = Color(0xFF64748B)
                 )
             }
 
@@ -106,8 +106,8 @@ fun LiveFlagPreview(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(ColorDarkSurfaceElevated)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFF1F5F2))
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {

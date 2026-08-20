@@ -66,16 +66,16 @@ fun LivePlayerPreview(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF161B24),
-                        Color(0xFF0F131A)
+                        Color(0xFFFAFBF9).copy(alpha = 0.98f),
+                        Color(0xFFF1F5F2).copy(alpha = 0.95f)
                     )
                 )
             )
-            .border(1.5.dp, parsedTerritoryColor.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .border(1.5.dp, parsedTerritoryColor.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
             .padding(16.dp)
             .testTag("live_player_preview")
     ) {
@@ -99,7 +99,7 @@ fun LivePlayerPreview(
                     Text(
                         text = "LIVE OPERATIVE IDENTITY",
                         style = MaterialTheme.typography.labelSmall,
-                        color = ColorElectricLime,
+                        color = Color(0xFF659900),
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
@@ -126,7 +126,7 @@ fun LivePlayerPreview(
                     modifier = Modifier
                         .size(68.dp)
                         .clip(CircleShape)
-                        .background(ColorDarkSurfaceElevated)
+                        .background(Color(0xFFF1F5F2))
                         .border(3.dp, parsedTerritoryColor, CircleShape)
                         .padding(4.dp),
                     contentAlignment = Alignment.Center
@@ -135,7 +135,7 @@ fun LivePlayerPreview(
                         modifier = Modifier
                             .size(54.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1E2530)),
+                            .background(Color(0xFFE2E8F0)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

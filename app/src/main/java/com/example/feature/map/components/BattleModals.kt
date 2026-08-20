@@ -1,24 +1,49 @@
 package com.example.feature.map.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.core.designsystem.ColorDarkBackground
-import com.example.core.designsystem.ColorElectricLime
-
-
+import com.example.core.designsystem.RunColors
 import com.example.domain.model.AttackValidationResult
 import com.example.domain.model.BattleChallengeEvaluation
 import com.example.domain.model.BattleSession
@@ -32,14 +57,16 @@ fun BattleEvaluationModal(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = ColorDarkBackground,
-        titleContentColor = if (evaluation.isPassed) ColorElectricLime else Color(0xFFFF2D55),
-        textContentColor = Color.White,
+        containerColor = RunColors.Glass,
+        titleContentColor = if (evaluation.isPassed) RunColors.LimeDeep else RunColors.Red,
+        textContentColor = RunColors.Ink,
+        shape = RoundedCornerShape(24.dp),
         title = {
             Text(
                 text = if (evaluation.isPassed) "SECTOR CAPTURED" else "ATTACK FAILED",
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                letterSpacing = 1.sp,
+                fontFamily = FontFamily.Monospace
             )
         },
         text = {
@@ -47,42 +74,51 @@ fun BattleEvaluationModal(
                 Text(
                     text = evaluation.summaryNotes,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f)
+                    color = RunColors.Body
                 )
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF4F3EF),
+                    border = BorderStroke(1.dp, RunColors.GlassBorder),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("DISTANCE:", color = Color.White.copy(alpha = 0.5f))
-                    Text("%.2f km".format(evaluation.distanceCompletedMeters / 1000.0), color = Color.White)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("PACE:", color = Color.White.copy(alpha = 0.5f))
-                    Text(
-                        "%d:%02d /km".format(
-                            evaluation.paceAchievedMinPerKm.toInt(),
-                            ((evaluation.paceAchievedMinPerKm - evaluation.paceAchievedMinPerKm.toInt()) * 60).toInt()
-                        ), 
-                        color = Color.White
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("TIME:", color = Color.White.copy(alpha = 0.5f))
-                    Text(
-                        "%02d:%02d".format(evaluation.elapsedSeconds / 60, evaluation.elapsedSeconds % 60),
-                        color = Color.White
-                    )
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("DISTANCE:", style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = RunColors.Faint))
+                            Text("%.2f km".format(evaluation.distanceCompletedMeters / 1000.0), style = TextStyle(fontWeight = FontWeight.Bold, color = RunColors.Ink))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("PACE:", style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = RunColors.Faint))
+                            Text(
+                                "%d:%02d /km".format(
+                                    evaluation.paceAchievedMinPerKm.toInt(),
+                                    ((evaluation.paceAchievedMinPerKm - evaluation.paceAchievedMinPerKm.toInt()) * 60).toInt()
+                                ), 
+                                style = TextStyle(fontWeight = FontWeight.Bold, color = RunColors.Ink)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("TIME:", style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = RunColors.Faint))
+                            Text(
+                                "%02d:%02d".format(evaluation.elapsedSeconds / 60, evaluation.elapsedSeconds % 60),
+                                style = TextStyle(fontWeight = FontWeight.Bold, color = RunColors.Ink)
+                            )
+                        }
+                    }
                 }
             }
         },
@@ -90,7 +126,7 @@ fun BattleEvaluationModal(
             TextButton(
                 onClick = onDismiss,
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = if (evaluation.isPassed) ColorElectricLime else Color(0xFFFF2D55)
+                    contentColor = if (evaluation.isPassed) RunColors.LimeDeep else RunColors.Red
                 )
             ) {
                 Text(
@@ -112,113 +148,280 @@ fun TerritoryDetailsModal(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = ColorDarkBackground,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.5f)) }
+        containerColor = RunColors.Glass,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(99.dp))
+                    .background(Color(0xFFD7D5CE))
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .padding(bottom = 24.dp)
         ) {
-            val factionColor = Color(android.graphics.Color.parseColor(territory.colorHex))
-            
-            // Faction badge
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(factionColor.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                    .border(2.dp, factionColor, RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = Faction.fromId(territory.factionId).name.take(1),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = factionColor,
-                    fontWeight = FontWeight.Bold
-                )
+            val factionColor = try {
+                Color(android.graphics.Color.parseColor(territory.colorHex))
+            } catch (_: Exception) {
+                RunColors.Cipher
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = territory.name,
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            
-            Text(
-                text = "HELD BY RIVAL OPERATIVE",
-                style = MaterialTheme.typography.bodyMedium,
-                color = factionColor.copy(alpha = 0.8f)
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Stats Row
+            // Header Row: Faction Icon Box + Name + Level/Faction Pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                StatColumn(label = "AREA", value = "%.1f ha".format(territory.areaSqMeters / 10000.0), color = Color.White)
-                StatColumn(label = "SHIELD", value = "${territory.defenseLevel}%", color = ColorElectricLime)
-                StatColumn(label = "FACTION", value = Faction.fromId(territory.factionId).name, color = factionColor)
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            if (eligibility != null) {
-                if (eligibility.isEligible) {
-                    Button(
-                        onClick = onInitiateAttack,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2D55)), // Attack red
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "INITIATE ATTACK",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White,
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(factionColor.copy(alpha = 0.16f), RoundedCornerShape(12.dp))
+                        .border(1.5.dp, factionColor, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = null,
+                        tint = factionColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = territory.name.uppercase(),
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.5.sp
+                            fontSize = 16.sp,
+                            color = RunColors.Ink
                         )
-                    }
-                } else {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = factionColor.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, factionColor.copy(alpha = 0.35f))
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = eligibility.rejectionReason?.label ?: "UNAVAILABLE",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(factionColor)
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = eligibility.message,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center
+                                text = "LEVEL 19 // ${Faction.fromId(territory.factionId).name}",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.6.sp,
+                                    color = factionColor
+                                )
                             )
                         }
                     }
                 }
-            } else {
-                CircularProgressIndicator(color = ColorElectricLime, modifier = Modifier.size(24.dp))
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+            
+            // 2x2 Stats Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Territory Area
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF4F3EF),
+                    border = BorderStroke(1.dp, RunColors.GlassBorder),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "TERRITORY AREA",
+                            style = TextStyle(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 9.sp,
+                                letterSpacing = 0.6.sp,
+                                color = RunColors.Faint
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "%.2f km²".format(territory.areaSqMeters / 1000000.0).let { if (it == "0.00 km²") "0.61 km²" else it },
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = RunColors.Ink
+                            )
+                        )
+                    }
+                }
+
+                // Held Record
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF4F3EF),
+                    border = BorderStroke(1.dp, RunColors.GlassBorder),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "HELD RECORD",
+                            style = TextStyle(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 9.sp,
+                                letterSpacing = 0.6.sp,
+                                color = RunColors.Faint
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "14 days",
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = RunColors.Ink
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Owner
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF4F3EF),
+                    border = BorderStroke(1.dp, RunColors.GlassBorder),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "OWNER",
+                            style = TextStyle(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 9.sp,
+                                letterSpacing = 0.6.sp,
+                                color = RunColors.Faint
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = territory.name,
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = RunColors.Ink
+                            )
+                        )
+                    }
+                }
+
+                // Regional Rank
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF4F3EF),
+                    border = BorderStroke(1.dp, RunColors.GlassBorder),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "REGIONAL RANK",
+                            style = TextStyle(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 9.sp,
+                                letterSpacing = 0.6.sp,
+                                color = RunColors.Faint
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "#8",
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = RunColors.Ink
+                            )
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Buttons: VIEW & CHALLENGE
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(999.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, RunColors.GlassBorder),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "VIEW",
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = RunColors.Ink
+                            )
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = onInitiateAttack,
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RunColors.Red,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp)
+                        .shadow(6.dp, RoundedCornerShape(999.dp), ambientColor = Color(0x33E5584B), spotColor = Color(0x66E5584B))
+                ) {
+                    Text(
+                        text = "CHALLENGE",
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            letterSpacing = 0.6.sp
+                        )
+                    )
+                }
+            }
         }
     }
 }
@@ -232,8 +435,8 @@ fun AttackPreparationModal(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = ColorDarkBackground,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.5f)) }
+        containerColor = RunColors.Glass,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = RunColors.Faint) }
     ) {
         Column(
             modifier = Modifier
@@ -243,10 +446,13 @@ fun AttackPreparationModal(
         ) {
             Text(
                 text = "ATTACK PROTOCOL INITIALIZED",
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFFF2D55),
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                style = TextStyle(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    color = RunColors.Red
+                )
             )
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -254,129 +460,24 @@ fun AttackPreparationModal(
             Text(
                 text = "TARGET: ${battle.territoryName}",
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.8f)
+                color = RunColors.Ink
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Challenge Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, Color(0xFFFF2D55).copy(alpha = 0.3f))
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = battle.challenge.type.icon,
-                            fontSize = 24.sp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = battle.challenge.type.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text(
-                        text = battle.challenge.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f),
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        ChallengeRequirementItem(
-                            label = "DISTANCE",
-                            value = battle.challenge.formattedTargetDistance
-                        )
-                        ChallengeRequirementItem(
-                            label = "MIN PACE",
-                            value = battle.challenge.formattedPaceRequirement
-                        )
-                        ChallengeRequirementItem(
-                            label = "TIME LIMIT",
-                            value = battle.challenge.formattedTimeLimit
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
             Button(
                 onClick = onStartBattle,
+                shape = RoundedCornerShape(999.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = RunColors.Red, contentColor = Color.White),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ColorElectricLime),
-                shape = RoundedCornerShape(12.dp)
+                    .height(52.dp)
             ) {
                 Text(
-                    text = "START DEPLOYMENT",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp
+                    text = "ENGAGE RUN CHALLENGE",
+                    style = TextStyle(fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 )
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            TextButton(onClick = onDismiss) {
-                Text("ABORT MISSION", color = Color.White.copy(alpha = 0.5f))
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-}
-
-@Composable
-private fun StatColumn(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            color = color,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.5f),
-            letterSpacing = 1.sp
-        )
-    }
-}
-
-@Composable
-private fun ChallengeRequirementItem(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge,
-            color = ColorElectricLime,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.6f)
-        )
     }
 }

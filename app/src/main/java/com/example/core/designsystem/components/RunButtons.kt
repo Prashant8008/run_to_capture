@@ -88,8 +88,8 @@ fun RunOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    borderColor: Color = RunColors.CardBorder,
-    contentColor: Color = RunColors.OnBackground,
+    borderColor: Color = RunColors.LightCardBorder,
+    contentColor: Color = RunColors.LightOnBackground,
     content: @Composable RowScope.() -> Unit
 ) {
     OutlinedButton(
@@ -102,7 +102,7 @@ fun RunOutlinedButton(
         border = BorderStroke(1.dp, borderColor),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = contentColor,
-            disabledContentColor = RunColors.OnSurfaceSubtle
+            disabledContentColor = RunColors.LightOnSurfaceSubtle
         ),
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
         content = content
@@ -115,8 +115,8 @@ fun RunSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    borderColor: Color = RunColors.CardBorder,
-    contentColor: Color = RunColors.OnBackground
+    borderColor: Color = RunColors.LightCardBorder,
+    contentColor: Color = RunColors.LightOnBackground
 ) {
     RunOutlinedButton(
         onClick = onClick,

@@ -39,9 +39,10 @@ fun LeafletMapView(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(0xFFE2E8F0.toInt())
+            setBackgroundColor(0xFF0F172A.toInt())
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -52,6 +53,7 @@ fun LeafletMapView(
                 cacheMode = WebSettings.LOAD_DEFAULT
                 databaseEnabled = true
                 mediaPlaybackRequiresUserGesture = false
+                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
         }
     }

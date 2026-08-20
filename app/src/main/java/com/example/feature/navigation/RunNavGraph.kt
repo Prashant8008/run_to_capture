@@ -144,11 +144,19 @@ fun RunNavGraph(
                 customizationRepository = appModule.customizationRepository,
                 onNavigateToMap = {
                     navController.navigate(RunDestinations.MAP) {
-                        popUpTo(RunDestinations.MAP) { inclusive = false }
+                        popUpTo(RunDestinations.MAP) { inclusive = true }
                     }
                 },
                 onNavigateToCustomization = {
                     navController.navigate(RunDestinations.CUSTOMIZATION)
+                },
+                onNavigateToTab = { tab ->
+                    when (tab) {
+                        com.example.core.designsystem.components.RunNavTab.MAP -> navController.navigate(RunDestinations.MAP) { popUpTo(RunDestinations.MAP) { inclusive = true } }
+                        com.example.core.designsystem.components.RunNavTab.BATTLES -> navController.navigate(RunDestinations.NOTIFICATIONS)
+                        com.example.core.designsystem.components.RunNavTab.RANK -> navController.navigate(RunDestinations.COMPETITIVE)
+                        com.example.core.designsystem.components.RunNavTab.PROFILE -> {}
+                    }
                 },
                 onLogout = {
                     navController.navigate(RunDestinations.LOGIN) {
@@ -183,7 +191,15 @@ fun RunNavGraph(
             com.example.feature.competitive.CompetitiveScreen(
                 viewModel = competitiveViewModel,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigate(RunDestinations.MAP) { popUpTo(RunDestinations.MAP) { inclusive = true } }
+                },
+                onNavigateToTab = { tab ->
+                    when (tab) {
+                        com.example.core.designsystem.components.RunNavTab.MAP -> navController.navigate(RunDestinations.MAP) { popUpTo(RunDestinations.MAP) { inclusive = true } }
+                        com.example.core.designsystem.components.RunNavTab.BATTLES -> navController.navigate(RunDestinations.NOTIFICATIONS)
+                        com.example.core.designsystem.components.RunNavTab.RANK -> {}
+                        com.example.core.designsystem.components.RunNavTab.PROFILE -> navController.navigate(RunDestinations.IDENTITY)
+                    }
                 }
             )
         }
@@ -197,7 +213,15 @@ fun RunNavGraph(
             com.example.feature.notifications.NotificationsScreen(
                 viewModel = notificationsViewModel,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigate(RunDestinations.MAP) { popUpTo(RunDestinations.MAP) { inclusive = true } }
+                },
+                onNavigateToTab = { tab ->
+                    when (tab) {
+                        com.example.core.designsystem.components.RunNavTab.MAP -> navController.navigate(RunDestinations.MAP) { popUpTo(RunDestinations.MAP) { inclusive = true } }
+                        com.example.core.designsystem.components.RunNavTab.BATTLES -> {}
+                        com.example.core.designsystem.components.RunNavTab.RANK -> navController.navigate(RunDestinations.COMPETITIVE)
+                        com.example.core.designsystem.components.RunNavTab.PROFILE -> navController.navigate(RunDestinations.IDENTITY)
+                    }
                 },
                 onNavigateToUrl = { url ->
                     if (url.startsWith("run2capture://map")) {

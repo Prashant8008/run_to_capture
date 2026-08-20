@@ -59,6 +59,8 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,6 +73,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,6 +85,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -107,9 +113,11 @@ import com.example.domain.model.RunState
 import com.example.domain.model.SyncStatus
 import com.example.domain.model.TrackingState
 import com.example.feature.map.components.LeafletMapView
+import com.example.feature.map.components.LocationAcquisitionOverlay
 import com.example.feature.map.components.TerritoryDetailsModal
 import com.example.feature.map.components.AttackPreparationModal
 import com.example.feature.map.components.BattleEvaluationModal
+import kotlinx.coroutines.delay
 
 @Composable
 fun WorldMapScreen(
@@ -123,6 +131,9 @@ fun WorldMapScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    var showAcquisitionOverlay by remember { mutableStateOf(true) }
+    var hasRevealedMap by remember { mutableStateOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -134,6 +145,23 @@ fun WorldMapScreen(
     LaunchedEffect(Unit) {
         permissionLauncher.launch(LocationPermissionManager.ALL_RUN_PERMISSIONS)
         com.example.core.sync.SyncManager.scheduleSync(context)
+    }
+
+    // Auto-reveal with sliding animation when GPS location fix is acquired
+    LaunchedEffect(uiState.userLocation, uiState.isMapReady) {
+        if (uiState.userLocation != null && !hasRevealedMap) {
+            hasRevealedMap = true
+            // Brief pause so user sees coordinates confirmed on the tactical radar
+            delay(550)
+            showAcquisitionOverlay = false
+            // Smoothly fly and zoom to the user's location with camera animation
+            viewModel.flyToUser(zoom = 16, durationSec = 1.2)
+        }
+    }
+
+    val onEnterMapImmediately: () -> Unit = {
+        showAcquisitionOverlay = false
+        viewModel.flyToUser(zoom = 16, durationSec = 1.0)
     }
 
     val isRunActiveOrPaused = uiState.runState == RunState.RUNNING || uiState.runState == RunState.PAUSED
@@ -253,7 +281,7 @@ fun WorldMapScreen(
         ) {
             BottomMapHud(
                 onStartRunClick = { viewModel.openRunPreparation() },
-                onNavigateToBattles = onNavigateToCompetitive,
+                onNavigateToBattles = onNavigateToNotifications,
                 onNavigateToRank = onNavigateToCompetitive,
                 onNavigateToProfile = onNavigateToIdentity,
                 modifier = Modifier.fillMaxWidth()
@@ -366,6 +394,17 @@ fun WorldMapScreen(
                 onDismiss = { viewModel.dismissLayerSelector() }
             )
         }
+
+        // 16. Tactical Location Acquisition & Calibration Overlay with sliding animation
+        LocationAcquisitionOverlay(
+            visible = showAcquisitionOverlay,
+            userLocation = uiState.userLocation,
+            gpsStatus = uiState.gpsStatus,
+            faction = uiState.faction,
+            username = uiState.username,
+            onEnterMapClick = onEnterMapImmediately,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
@@ -375,107 +414,184 @@ private fun TopMapHud(
     onNotificationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val displayCallsign = if (uiState.username.isNotBlank()) uiState.username else "PKCH92277"
-    val initials = if (displayCallsign.length >= 2) displayCallsign.take(2).uppercase() else "PK"
+    val displayCallsign = if (uiState.username.isNotBlank()) uiState.username else "NIGHTHAWK_07"
+    val initials = if (displayCallsign.length >= 2) displayCallsign.take(2).uppercase() else "NH"
 
-    Box(
-        modifier = modifier
-            .testTag("top_map_hud")
-            .shadow(6.dp, RoundedCornerShape(50))
-            .clip(RoundedCornerShape(50))
-            .background(Color(0xE6F0F5F2))
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(50))
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.Start
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Main Top Glass HUD
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = RunColors.Glass,
+            border = androidx.compose.foundation.BorderStroke(1.dp, RunColors.GlassBorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0x1414171A), spotColor = Color(0x1F14171A))
+                .testTag("top_map_hud")
         ) {
-            // Player Profile Avatar + Callsign & Mini XP Bar
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Circle Avatar with initials
+                // Avatar Ring with cyan border
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE0F7FA))
-                        .border(1.5.dp, Color(0xFF00E5FF), CircleShape),
-                    contentAlignment = Alignment.Center
+                        .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(RunColors.Cyan, RunColors.Cyan)))
+                        .padding(2.5.dp)
                 ) {
-                    Text(
-                        text = initials,
-                        color = Color(0xFF0284C7),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.SansSerif
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(Color(0xFFDAD8D0)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = initials,
+                            color = RunColors.Ink,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
                 }
 
-                Column {
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Name, LV chip & XP Track
+                Column(modifier = Modifier.weight(1f)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
                         Text(
                             text = displayCallsign.uppercase(),
-                            color = Color(0xFF111827),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.SansSerif,
-                            letterSpacing = 0.5.sp
+                            color = RunColors.Ink,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.SansSerif
                         )
-                        Text(
-                            text = "LVL ${uiState.playerLevel}",
-                            color = Color(0xFF64748B),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.SansSerif,
-                            modifier = Modifier.testTag("player_level_badge")
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = RunColors.LimeTint,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, RunColors.Lime.copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                text = "LV ${uiState.playerLevel}",
+                                color = RunColors.LimeDeep,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier
+                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                                    .testTag("player_level_badge")
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(3.dp))
-                    // Mini XP bar
-                    LinearProgressIndicator(
-                        progress = { uiState.playerXpProgress },
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // XP Track (5px height with lime-cyan gradient)
+                    Box(
                         modifier = Modifier
-                            .width(96.dp)
-                            .height(3.5.dp)
-                            .clip(RoundedCornerShape(2.dp)),
-                        color = Color(0xFFD2F834),
-                        trackColor = Color(0xFFE2E8F0),
+                            .fillMaxWidth(0.95f)
+                            .height(5.dp)
+                            .clip(RoundedCornerShape(99.dp))
+                            .background(Color(0xFFE9E8E2))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(uiState.playerXpProgress.coerceIn(0.1f, 1f))
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(99.dp))
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                        listOf(RunColors.Lime, RunColors.Cyan)
+                                    )
+                                )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Notification Bell Wrap with Dot
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF4F3EF))
+                        .clickable { onNotificationClick() }
+                        .testTag("notification_button"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Tactical Notifications",
+                        tint = RunColors.Ink,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    // Notification indicator dot (lime)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-3).dp, y = 3.dp)
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(RunColors.LimeDeep)
+                            .border(1.5.dp, Color.White, CircleShape)
                     )
                 }
             }
+        }
 
-            // Notification Bell with badge dot
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .clickable { onNotificationClick() }
-                    .testTag("notification_button"),
-                contentAlignment = Alignment.Center
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // GPS Status Pill
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = Color.White,
+            border = androidx.compose.foundation.BorderStroke(1.dp, RunColors.GlassBorder),
+            modifier = Modifier.shadow(4.dp, RoundedCornerShape(50))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Tactical Notifications",
-                    tint = Color(0xFF475569),
-                    modifier = Modifier.size(22.dp)
-                )
-                // Notification indicator dot (lime)
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = (-2).dp, y = 2.dp)
-                        .size(8.dp)
+                        .size(6.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF84CC16))
-                        .border(1.dp, Color.White, CircleShape)
+                        .background(
+                            when (uiState.gpsStatus) {
+                                GpsSignalStatus.GOOD -> Color(0xFF8FD98C)
+                                GpsSignalStatus.POOR -> RunColors.Warning
+                                else -> RunColors.Error
+                            }
+                        )
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = when (uiState.gpsStatus) {
+                        GpsSignalStatus.GOOD -> "GPS GOOD"
+                        GpsSignalStatus.POOR -> "GPS POOR"
+                        GpsSignalStatus.SEARCHING -> "GPS SEARCHING"
+                        GpsSignalStatus.DISABLED -> "GPS DISABLED"
+                    },
+                    style = TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
+                        color = RunColors.Body
+                    )
                 )
             }
         }
@@ -631,103 +747,139 @@ private fun BottomMapHud(
     Column(
         modifier = modifier
             .testTag("bottom_map_hud")
-            .padding(bottom = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Pill: RUN · EXPAND · CAPTURE
-        Box(
+        // Floating Action Card: Territory Held Stat + START RUN Button (Screen 09)
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = RunColors.Glass,
+            border = androidx.compose.foundation.BorderStroke(1.dp, RunColors.GlassBorder),
             modifier = Modifier
-                .shadow(4.dp, RoundedCornerShape(50))
-                .clip(RoundedCornerShape(50))
-                .background(Color(0xE6F1F5F3))
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(50))
-                .padding(horizontal = 22.dp, vertical = 8.dp)
+                .fillMaxWidth()
+                .shadow(12.dp, RoundedCornerShape(22.dp), ambientColor = Color(0x1414171A), spotColor = Color(0x1F14171A))
         ) {
-            Text(
-                text = "RUN  ·  EXPAND  ·  CAPTURE",
-                color = Color(0xFF1E293B),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.SansSerif,
-                letterSpacing = 1.6.sp
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left: Territory Held Stat
+                Column {
+                    Text(
+                        text = "TERRITORY HELD",
+                        style = TextStyle(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp,
+                            color = RunColors.Faint
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = "1.84 km²",
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = RunColors.Ink
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "▲ +0.12 today",
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = RunColors.CyanDeep
+                            )
+                        )
+                    }
+                }
+
+                // Right: START RUN Pill Button
+                Button(
+                    onClick = onStartRunClick,
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RunColors.Lime,
+                        contentColor = RunColors.LimeText
+                    ),
+                    modifier = Modifier
+                        .height(46.dp)
+                        .shadow(8.dp, RoundedCornerShape(999.dp), ambientColor = Color(0x33CFF23A), spotColor = Color(0x66CFF23A))
+                        .testTag("start_run_button")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DirectionsRun,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "START RUN",
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 0.8.sp
+                            )
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Neon Lime START RUN Primary Pill Button
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .height(56.dp)
-                .shadow(6.dp, RoundedCornerShape(50))
-                .clip(RoundedCornerShape(50))
-                .background(Color(0xFFD2F834))
-                .clickable { onStartRunClick() }
-                .testTag("start_run_button"),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DirectionsRun,
-                    contentDescription = "Start Run",
-                    tint = Color(0xFF111827),
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = "START RUN",
-                    color = Color(0xFF111827),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.SansSerif,
-                    letterSpacing = 1.2.sp
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
         // Floating Bottom Navigation Bar (MAP, BATTLES, RANK, PROFILE)
-        Box(
+        Surface(
+            shape = RoundedCornerShape(26.dp),
+            color = RunColors.Glass,
+            border = androidx.compose.foundation.BorderStroke(1.dp, RunColors.GlassBorder),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .shadow(8.dp, RoundedCornerShape(24.dp))
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFFF6F8F6))
-                .border(1.dp, Color(0xFFE5EBE5), RoundedCornerShape(24.dp))
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .shadow(10.dp, RoundedCornerShape(26.dp), ambientColor = Color(0x1414171A), spotColor = Color(0x1F14171A))
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // MAP (Active tab)
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFFDFEADE))
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(RunColors.LimeTint)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Map,
                         contentDescription = "Map View",
-                        tint = Color(0xFF1B4332),
-                        modifier = Modifier.size(20.dp)
+                        tint = RunColors.LimeDeep,
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "MAP",
-                        color = Color(0xFF1B4332),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.SansSerif
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = RunColors.LimeDeep,
+                            letterSpacing = 0.5.sp
+                        )
                     )
                 }
 
@@ -742,16 +894,18 @@ private fun BottomMapHud(
                     Icon(
                         imageVector = Icons.Default.Security,
                         contentDescription = "Battles",
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(20.dp)
+                        tint = RunColors.Faint,
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "BATTLES",
-                        color = Color(0xFF64748B),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RunColors.Faint
+                        )
                     )
                 }
 
@@ -766,16 +920,18 @@ private fun BottomMapHud(
                     Icon(
                         imageVector = Icons.Default.EmojiEvents,
                         contentDescription = "Rank",
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(20.dp)
+                        tint = RunColors.Faint,
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "RANK",
-                        color = Color(0xFF64748B),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RunColors.Faint
+                        )
                     )
                 }
 
@@ -790,16 +946,18 @@ private fun BottomMapHud(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = "Profile",
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(20.dp)
+                        tint = RunColors.Faint,
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "PROFILE",
-                        color = Color(0xFF64748B),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RunColors.Faint
+                        )
                     )
                 }
             }

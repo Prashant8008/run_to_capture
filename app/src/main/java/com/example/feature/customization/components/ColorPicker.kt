@@ -75,9 +75,9 @@ fun ColorPicker(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ColorDarkCard)
-            .border(1.dp, Color(0xFF272D38), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFAFBF9).copy(alpha = 0.95f))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
             .padding(16.dp)
             .testTag("territory_color_picker")
     ) {
@@ -94,13 +94,13 @@ fun ColorPicker(
                 Icon(
                     imageVector = Icons.Default.Palette,
                     contentDescription = null,
-                    tint = ColorElectricLime,
+                    tint = Color(0xFF659900),
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = "TERRITORY CONQUEST COLOR",
                     style = MaterialTheme.typography.labelMedium,
-                    color = ColorTextPrimary,
+                    color = Color(0xFF111827),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -111,7 +111,8 @@ fun ColorPicker(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .background(ColorDarkSurfaceElevated)
+                    .background(Color(0xFFF1F5F2))
+                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Box(
@@ -123,7 +124,7 @@ fun ColorPicker(
                 Text(
                     text = StandardTerritoryColor.getHexForColor(selectedColor),
                     style = MaterialTheme.typography.labelSmall,
-                    color = ColorTextPrimary,
+                    color = Color(0xFF111827),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -135,7 +136,7 @@ fun ColorPicker(
         Text(
             text = "STANDARD SECTOR PALETTE",
             style = MaterialTheme.typography.labelSmall,
-            color = ColorTextSecondary,
+            color = Color(0xFF64748B),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
@@ -158,7 +159,7 @@ fun ColorPicker(
                         .background(standardColor.color)
                         .border(
                             width = if (isSelected) 3.dp else 1.dp,
-                            color = if (isSelected) Color.White else Color(0x33FFFFFF),
+                            color = if (isSelected) Color(0xFF111827) else Color(0x33000000),
                             shape = CircleShape
                         )
                         .clickable {
@@ -186,7 +187,7 @@ fun ColorPicker(
         Text(
             text = "CUSTOM COLOR (HEX)",
             style = MaterialTheme.typography.labelSmall,
-            color = ColorTextSecondary,
+            color = Color(0xFF64748B),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
@@ -212,30 +213,30 @@ fun ColorPicker(
                         }
                     }
                 },
-                placeholder = { Text("00FF88", color = ColorTextSecondary) },
-                prefix = { Text("#", color = ColorElectricLime, fontWeight = FontWeight.Bold) },
+                placeholder = { Text("00FF88", color = Color(0xFF94A3B8)) },
+                prefix = { Text("#", color = Color(0xFF659900), fontWeight = FontWeight.Bold) },
                 singleLine = true,
                 modifier = Modifier
                     .weight(1f)
                     .testTag("custom_hex_input"),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = if (mapValidation.isValid) ColorElectricLime else ColorApexRed,
-                    unfocusedBorderColor = Color(0xFF2E3846),
-                    focusedContainerColor = ColorDarkSurfaceElevated,
-                    unfocusedContainerColor = ColorDarkSurfaceElevated,
-                    focusedTextColor = ColorTextPrimary,
-                    unfocusedTextColor = ColorTextPrimary
+                    focusedBorderColor = if (mapValidation.isValid) Color(0xFF8DC600) else Color(0xFFFF3B30),
+                    unfocusedBorderColor = Color(0xFFE2E8F0),
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color(0xFFF8FAFC),
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827)
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(10.dp)
             )
 
             // Custom Color Sample Circle
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(if (mapValidation.isValid && customHexInput.length == 6) Color(("FF$customHexInput").toLong(16)) else activeColorObj)
-                    .border(2.dp, Color(0xFF2E3846), RoundedCornerShape(8.dp)),
+                    .border(1.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 if (customHexInput.length == 6 && mapValidation.isValid) {
@@ -255,34 +256,34 @@ fun ColorPicker(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
-                .background(if (mapValidation.isValid) Color(0xFF0F2617) else Color(0xFF2A1215))
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (mapValidation.isValid) Color(0xFFEFFDF5) else Color(0xFFFEF2F2))
                 .border(
                     width = 1.dp,
-                    color = if (mapValidation.isValid) ColorElectricLime.copy(alpha = 0.5f) else ColorApexRed.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(6.dp)
+                    color = if (mapValidation.isValid) Color(0xFF86EFAC) else Color(0xFFFECACA),
+                    shape = RoundedCornerShape(10.dp)
                 )
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = if (mapValidation.isValid) Icons.Default.CheckCircle else Icons.Default.Warning,
                 contentDescription = null,
-                tint = if (mapValidation.isValid) ColorElectricLime else ColorApexRed,
-                modifier = Modifier.size(16.dp)
+                tint = if (mapValidation.isValid) Color(0xFF16A34A) else Color(0xFFDC2626),
+                modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Column {
                 Text(
                     text = if (mapValidation.isValid) "MAP VISIBILITY: OPTIMAL" else "MAP VISIBILITY: LOW CONTRAST",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (mapValidation.isValid) ColorElectricLime else ColorApexRed,
+                    color = if (mapValidation.isValid) Color(0xFF15803D) else Color(0xFFB91C1C),
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = mapValidation.message,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ColorTextPrimary,
+                    color = Color(0xFF334155),
                     fontSize = 11.sp
                 )
             }

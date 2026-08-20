@@ -196,10 +196,11 @@
             if (isMapInitialized) return;
 
             try {
-                // Initialize map centered at San Francisco default or previous
+                // Initialize map centered at San Francisco default or previous with optimized canvas renderer
                 map = L.map('map', {
                     zoomControl: false,
                     attributionControl: false,
+                    preferCanvas: true,
                     fadeAnimation: true,
                     zoomAnimation: true,
                     maxZoom: 19,
@@ -284,6 +285,13 @@
             } else {
                 map.panTo([lat, lng], { animate: true, duration: 0.6 });
             }
+        };
+
+        window.flyTo = function(lat, lng, zoom, durationSec) {
+            if (!map) return;
+            var targetZoom = zoom || 16;
+            var dur = durationSec || 1.2;
+            map.flyTo([lat, lng], targetZoom, { animate: true, duration: dur });
         };
 
         window.setZoom = function(zoom, animated) {

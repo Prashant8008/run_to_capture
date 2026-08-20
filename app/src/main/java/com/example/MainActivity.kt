@@ -5,9 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.example.core.designsystem.ColorDarkBackground
 import com.example.core.designsystem.Run2CaptureTheme
 import com.example.core.di.AppModule
 import com.example.feature.navigation.RunNavGraph
@@ -23,10 +23,10 @@ class MainActivity : ComponentActivity() {
         appModule = AppModule(applicationContext)
 
         setContent {
-            Run2CaptureTheme {
+            Run2CaptureTheme(darkTheme = false) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = ColorDarkBackground
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     RunNavGraph(appModule = appModule)
                 }
@@ -34,3 +34,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+

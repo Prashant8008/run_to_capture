@@ -466,6 +466,16 @@ class WorldMapViewModel(
         }
     }
 
+    fun flyToUser(zoom: Int = 16, durationSec: Double = 1.2) {
+        val userLoc = _uiState.value.userLocation
+        _uiState.update { it.copy(isFollowingUser = true) }
+        if (userLoc != null) {
+            mapController?.flyTo(userLoc.latitude, userLoc.longitude, zoom = zoom, durationSec = durationSec)
+        } else {
+            mapController?.flyTo(MapConfig.DEFAULT_LAT, MapConfig.DEFAULT_LNG, zoom = zoom, durationSec = durationSec)
+        }
+    }
+
     fun zoomIn() {
         mapController?.zoomIn()
     }

@@ -17,8 +17,8 @@ import com.example.core.designsystem.RunSpacing
 @Composable
 fun RunCard(
     modifier: Modifier = Modifier,
-    backgroundColor: Color = RunColors.Surface,
-    borderColor: Color = RunColors.CardBorder,
+    backgroundColor: Color = RunColors.LightSurface.copy(alpha = 0.95f),
+    borderColor: Color = RunColors.LightCardBorder,
     borderWidth: Dp = 1.dp,
     contentPadding: Dp = RunSpacing.m,
     content: @Composable ColumnScope.() -> Unit

@@ -1,7 +1,13 @@
 package com.example.feature.onboarding
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,16 +19,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,54 +43,118 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.core.designsystem.ColorDarkBackground
-import com.example.core.designsystem.ColorDarkCard
-import com.example.core.designsystem.ColorDarkSurfaceElevated
-import com.example.core.designsystem.ColorElectricLime
-import com.example.core.designsystem.ColorTextPrimary
-import com.example.core.designsystem.ColorTextSecondary
-import com.example.core.designsystem.components.RunBadge
-import com.example.core.designsystem.components.RunBadgeVariant
-import com.example.core.designsystem.components.RunPrimaryButton
-import com.example.core.designsystem.components.RunSecondaryButton
+import com.example.core.designsystem.RunColors
 
 data class OnboardingStep(
+    val phaseBadge: String,
+    val stepEyebrow: String,
     val title: String,
-    val subtitle: String,
     val description: String,
     val icon: ImageVector,
-    val badge: String
+    val trackingParam: String,
+    val rewardParam: String,
+    val minLoopParam: String,
+    val signalParam: String
 )
 
 private val steps = listOf(
     OnboardingStep(
-        title = "Claim Real World Ground",
-        subtitle = "TURF CAPTURE VIA RUNNING",
-        description = "Turn every outdoor sprint, jog, or tactical walk into polygon territory in real time with high-precision GPS tracking.",
+        phaseBadge = "PHASE 01 // LOCOMOTION",
+        stepEyebrow = "STEP ONE // MOVEMENT PROTOCOL",
+        title = "Every Run Becomes Ground You Hold.",
+        description = "Your GPS trace draws the perimeter. Close the loop in the real world and the territory is yours to defend.",
         icon = Icons.Default.DirectionsRun,
-        badge = "PHASE 01 // LOCOMOTION"
+        trackingParam = "High-Precision GPS",
+        rewardParam = "Polygon Capture",
+        minLoopParam = "400m Perimeter",
+        signalParam = "Outdoor Required"
     ),
     OnboardingStep(
-        title = "Encircle To Capture",
-        subtitle = "GEOMETRIC CLOSED LOOPS",
-        description = "Run a closed geometric loop around city blocks and parks. Run2Capture automatically validates and binds the territory to your faction.",
+        phaseBadge = "PHASE 02 // TERRITORY",
+        stepEyebrow = "STEP TWO // GROUND CONTROL",
+        title = "Claim It. Shape It. Defend It.",
+        description = "Closed loops become polygons on the live map. Expand your borders, or lose them to whoever runs harder.",
         icon = Icons.Default.Map,
-        badge = "PHASE 02 // SECTOR CONTROL"
+        trackingParam = "Real-Time Perimeter",
+        rewardParam = "Faction Expansion",
+        minLoopParam = "600m Boundary",
+        signalParam = "Zero Signal Loss"
     ),
     OnboardingStep(
-        title = "Ascend The Factions",
-        subtitle = "APEX // CIPHER // SOLARIS",
-        description = "Align with a global syndicate. Compete for regional dominance, maintain daily turf streaks, and defend your sector perimeter.",
+        phaseBadge = "PHASE 03 // SYNDICATE DOMINANCE",
+        stepEyebrow = "STEP THREE // ALIGNMENT",
+        title = "Ascend The Factions.",
+        description = "Pledge to a faction and stack your captures toward regional dominance. Every meter you hold counts for your colors.",
         icon = Icons.Default.Shield,
-        badge = "PHASE 03 // SYNDICATE DOMINANCE"
+        trackingParam = "Syndicate Sync",
+        rewardParam = "Weekly Multipliers",
+        minLoopParam = "Territory Defense",
+        signalParam = "GPS + Biometrics"
     )
 )
+
+@Composable
+fun CornerBracketWrap(
+    modifier: Modifier = Modifier,
+    icon: ImageVector
+) {
+    Box(
+        modifier = modifier.size(120.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // 4 Corner Brackets
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val bracketSize = 22.dp.toPx()
+            val stroke = 3.dp.toPx()
+            val color = RunColors.Lime
+
+            // Top-Left
+            drawLine(color, Offset(0f, 0f), Offset(bracketSize, 0f), strokeWidth = stroke, cap = StrokeCap.Round)
+            drawLine(color, Offset(0f, 0f), Offset(0f, bracketSize), strokeWidth = stroke, cap = StrokeCap.Round)
+
+            // Top-Right
+            drawLine(color, Offset(size.width, 0f), Offset(size.width - bracketSize, 0f), strokeWidth = stroke, cap = StrokeCap.Round)
+            drawLine(color, Offset(size.width, 0f), Offset(size.width, bracketSize), strokeWidth = stroke, cap = StrokeCap.Round)
+
+            // Bottom-Left
+            drawLine(color, Offset(0f, size.height), Offset(bracketSize, size.height), strokeWidth = stroke, cap = StrokeCap.Round)
+            drawLine(color, Offset(0f, size.height), Offset(0f, size.height - bracketSize), strokeWidth = stroke, cap = StrokeCap.Round)
+
+            // Bottom-Right
+            drawLine(color, Offset(size.width, size.height), Offset(size.width - bracketSize, size.height), strokeWidth = stroke, cap = StrokeCap.Round)
+            drawLine(color, Offset(size.width, size.height), Offset(size.width, size.height - bracketSize), strokeWidth = stroke, cap = StrokeCap.Round)
+        }
+
+        // Centered Icon Tile
+        Box(
+            modifier = Modifier
+                .size(76.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFFEDECE7))
+                .border(1.dp, RunColors.GlassBorder, RoundedCornerShape(22.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = RunColors.Ink,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+    }
+}
 
 @Composable
 fun OnboardingScreen(
@@ -92,138 +166,272 @@ fun OnboardingScreen(
     val step = steps[currentStepIndex]
 
     Scaffold(
-        containerColor = ColorDarkBackground,
+        containerColor = RunColors.Background,
         modifier = modifier.fillMaxSize().testTag("onboarding_screen")
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
         ) {
-            // Top Bar with Skip
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 20.dp)
+                    .widthIn(max = 440.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                RunBadge(
-                    text = step.badge,
-                    variant = RunBadgeVariant.ACCENT
-                )
-                if (currentStepIndex < steps.size - 1) {
-                    TextButton(
-                        onClick = onNavigateToLogin,
-                        modifier = Modifier.testTag("onboarding_skip_button")
-                    ) {
-                        Text(
-                            text = "Skip Briefing",
-                            color = ColorTextSecondary,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-            }
-
-            // Center Animated Step Content
-            AnimatedContent(
-                targetState = step,
-                label = "step_transition"
-            ) { currentStep ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
-                ) {
+                // Top Header Row with Cyan Status Pill and Skip Briefing
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Top Linear Progress Track
                     Box(
                         modifier = Modifier
-                            .size(120.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(ColorDarkCard),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(99.dp))
+                            .background(RunColors.GlassBorder)
                     ) {
-                        Icon(
-                            imageVector = currentStep.icon,
-                            contentDescription = currentStep.title,
-                            tint = ColorElectricLime,
-                            modifier = Modifier.size(56.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    Text(
-                        text = currentStep.subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ColorElectricLime,
-                        letterSpacing = 1.5.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = currentStep.title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = ColorTextPrimary,
-                        fontWeight = FontWeight.Black,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = currentStep.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = ColorTextSecondary,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 22.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-            }
-
-            // Bottom Controls (Pagers + CTA)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Page Indicator Dots
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 24.dp)
-                ) {
-                    steps.indices.forEach { index ->
+                        val progressFraction = (currentStepIndex + 1f) / steps.size.toFloat()
                         Box(
                             modifier = Modifier
-                                .size(if (index == currentStepIndex) 24.dp else 8.dp, 8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (index == currentStepIndex) ColorElectricLime else ColorDarkSurfaceElevated
-                                )
+                                .fillMaxWidth(progressFraction)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(99.dp))
+                                .background(RunColors.Lime)
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = RunColors.CyanTint,
+                            border = BorderStroke(1.dp, RunColors.Cyan.copy(alpha = 0.35f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(RunColors.Cyan)
+                                )
+                                Spacer(modifier = Modifier.width(7.dp))
+                                Text(
+                                    text = step.phaseBadge,
+                                    style = TextStyle(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.sp,
+                                        color = RunColors.CyanDeep
+                                    )
+                                )
+                            }
+                        }
+
+                        if (currentStepIndex < steps.size - 1) {
+                            TextButton(
+                                onClick = onNavigateToLogin,
+                                modifier = Modifier.testTag("onboarding_skip_button")
+                            ) {
+                                Text(
+                                    text = "SKIP BRIEFING",
+                                    color = RunColors.Body,
+                                    style = TextStyle(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp
+                                    )
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "STEP 3 / 3",
+                                color = RunColors.Body,
+                                style = TextStyle(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                            )
+                        }
                     }
                 }
 
-                if (currentStepIndex < steps.size - 1) {
-                    RunPrimaryButton(
-                        text = "Continue Briefing",
-                        onClick = { currentStepIndex++ },
-                        modifier = Modifier.testTag("onboarding_next_button")
-                    )
-                } else {
-                    RunPrimaryButton(
-                        text = "Enlist Now",
-                        onClick = onNavigateToRegister,
-                        modifier = Modifier.testTag("onboarding_register_button")
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    RunSecondaryButton(
-                        text = "Sign In with Existing ID",
-                        onClick = onNavigateToLogin,
-                        modifier = Modifier.testTag("onboarding_login_button")
-                    )
+                // Center Dynamic Step Hero Section
+                AnimatedContent(
+                    targetState = step,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "step_hero_transition"
+                ) { currentStep ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
+                    ) {
+                        // Tactical Corner-Bracket Wrapped Icon Tile
+                        CornerBracketWrap(icon = currentStep.icon)
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Eyebrow Lime
+                        Text(
+                            text = currentStep.stepEyebrow,
+                            style = TextStyle(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp,
+                                color = RunColors.LimeDeep
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Headline
+                        Text(
+                            text = currentStep.title,
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                fontSize = 24.sp,
+                                lineHeight = 30.sp,
+                                letterSpacing = (-0.4).sp
+                            ),
+                            color = RunColors.Ink,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Body Subtitle
+                        Text(
+                            text = currentStep.description,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                lineHeight = 22.sp,
+                                fontSize = 13.5.sp
+                            ),
+                            color = RunColors.Body,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Progress Indicator Dots (20dp wide active)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            steps.indices.forEach { index ->
+                                val isCurrent = index == currentStepIndex
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = if (isCurrent) 20.dp else 6.dp, height = 6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isCurrent) RunColors.LimeDeep else Color(0xFFD7D5CE))
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Bottom Action Buttons
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Primary Lime Button: ENLIST NOW
+                    Button(
+                        onClick = {
+                            if (currentStepIndex < steps.size - 1) {
+                                currentStepIndex++
+                            } else {
+                                onNavigateToRegister()
+                            }
+                        },
+                        shape = RoundedCornerShape(999.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = RunColors.Lime,
+                            contentColor = RunColors.LimeText
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .shadow(
+                                elevation = 10.dp,
+                                shape = RoundedCornerShape(999.dp),
+                                ambientColor = Color(0x33CFF23A),
+                                spotColor = Color(0x66CFF23A)
+                            )
+                            .testTag(if (currentStepIndex == steps.size - 1) "onboarding_register_button" else "onboarding_next_button")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = if (currentStepIndex == steps.size - 1) "ENLIST NOW" else "CONTINUE BRIEFING",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 0.8.sp
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    if (currentStepIndex == steps.size - 1) {
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Ghost White Button: SIGN IN WITH EXISTING ID
+                        Surface(
+                            onClick = onNavigateToLogin,
+                            shape = RoundedCornerShape(999.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, RunColors.GlassBorder),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .shadow(4.dp, RoundedCornerShape(999.dp))
+                                .testTag("onboarding_login_button")
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "SIGN IN WITH EXISTING ID",
+                                    style = TextStyle(
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.4.sp,
+                                        color = RunColors.Ink
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

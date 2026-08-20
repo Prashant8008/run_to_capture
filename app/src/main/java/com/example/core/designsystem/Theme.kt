@@ -3,8 +3,40 @@ package com.example.core.designsystem
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+
+private val RunLightColorScheme = lightColorScheme(
+    primary = RunColors.ElectricLimeDark,
+    onPrimary = Color.White,
+    primaryContainer = RunColors.ElectricLimePill,
+    onPrimaryContainer = Color(0xFF1E2E05),
+    
+    secondary = Color(0xFF0097A7),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE0F7FA),
+    onSecondaryContainer = Color(0xFF006064),
+    
+    tertiary = Color(0xFFD97706),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFEF3C7),
+    onTertiaryContainer = Color(0xFF92400E),
+    
+    background = RunColors.LightBackground,
+    onBackground = RunColors.LightOnBackground,
+    
+    surface = RunColors.LightSurface,
+    onSurface = RunColors.LightOnSurface,
+    surfaceVariant = RunColors.LightSurfaceVariant,
+    onSurfaceVariant = RunColors.LightOnSurfaceMuted,
+    
+    outline = RunColors.LightCardBorder,
+    outlineVariant = Color(0xFFE2E8F0),
+    
+    error = RunColors.Error,
+    onError = Color.White
+)
 
 private val RunDarkColorScheme = darkColorScheme(
     primary = RunColors.ElectricLime,
@@ -39,13 +71,15 @@ private val RunDarkColorScheme = darkColorScheme(
 
 @Composable
 fun Run2CaptureTheme(
-    darkTheme: Boolean = true, // Dark theme is default for Run2Capture
+    darkTheme: Boolean = false, // Liquid Glass Light theme by default
     content: @Composable () -> Unit
 ) {
+    val colorScheme = if (darkTheme) RunDarkColorScheme else RunLightColorScheme
     MaterialTheme(
-        colorScheme = RunDarkColorScheme,
+        colorScheme = colorScheme,
         typography = RunTypography,
         shapes = RunShapes,
         content = content
     )
 }
+

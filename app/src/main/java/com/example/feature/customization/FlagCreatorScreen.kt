@@ -57,13 +57,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.core.designsystem.ColorApexRed
-import com.example.core.designsystem.ColorDarkBackground
-import com.example.core.designsystem.ColorDarkCard
-import com.example.core.designsystem.ColorDarkSurfaceElevated
-import com.example.core.designsystem.ColorElectricLime
-import com.example.core.designsystem.ColorTextPrimary
-import com.example.core.designsystem.ColorTextSecondary
+import com.example.core.designsystem.*
+import com.example.core.designsystem.components.TacticalMapBackground
 import com.example.domain.model.FlagBackground
 import com.example.domain.model.FlagBorder
 import com.example.domain.model.FlagConfig
@@ -98,193 +93,199 @@ fun FlagCreatorScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "CUSTOMIZATION STUDIO",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorTextPrimary,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = "PHASE 4 // VISUAL IDENTITY & FLAG FORGE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = ColorElectricLime,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.testTag("back_button")
+    TacticalMapBackground(
+        modifier = modifier.fillMaxSize(),
+        showRadarPulse = true,
+        overlayAlpha = 0.40f
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = "CUSTOMIZATION STUDIO",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827),
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = "PHASE 4 // VISUAL IDENTITY & FLAG FORGE",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF659900),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.testTag("back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color(0xFF111827)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color(0xFFFAFBF9).copy(alpha = 0.92f)
+                    )
+                )
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            containerColor = Color.Transparent,
+            modifier = Modifier.fillMaxSize()
+        ) { paddingValues ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Live Player Preview (Avatar + Username + Territory Color + Live Flag)
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LivePlayerPreview(
+                        username = uiState.username,
+                        faction = uiState.faction,
+                        territoryColor = uiState.territoryColor,
+                        flag = uiState.flag,
+                        avatarUrl = uiState.avatarUrl
+                    )
+                }
+
+                // 2. Live Flag Preview Banner
+                item {
+                    LiveFlagPreview(flag = uiState.flag)
+                }
+
+                // 3. Category Selector Tabs
+                item {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("customization_tabs"),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = ColorTextPrimary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ColorDarkBackground
-                )
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = ColorDarkBackground,
-        modifier = modifier.fillMaxSize()
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // 1. Live Player Preview (Avatar + Username + Territory Color + Live Flag)
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                LivePlayerPreview(
-                    username = uiState.username,
-                    faction = uiState.faction,
-                    territoryColor = uiState.territoryColor,
-                    flag = uiState.flag,
-                    avatarUrl = uiState.avatarUrl
-                )
-            }
-
-            // 2. Live Flag Preview Banner
-            item {
-                LiveFlagPreview(flag = uiState.flag)
-            }
-
-            // 3. Category Selector Tabs
-            item {
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("customization_tabs"),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(CustomizationTab.entries) { tab ->
-                        val isSelected = uiState.activeTab == tab
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.setTab(tab) },
-                            label = {
-                                Text(
-                                    text = tab.label,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 11.sp
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = ColorDarkCard,
-                                labelColor = ColorTextSecondary,
-                                selectedContainerColor = ColorElectricLime,
-                                selectedLabelColor = Color.Black
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
+                        items(CustomizationTab.entries) { tab ->
+                            val isSelected = uiState.activeTab == tab
+                            FilterChip(
                                 selected = isSelected,
-                                borderColor = Color(0xFF2E3846),
-                                selectedBorderColor = ColorElectricLime
-                            ),
-                            modifier = Modifier.testTag("tab_${tab.name.lowercase()}")
-                        )
+                                onClick = { viewModel.setTab(tab) },
+                                label = {
+                                    Text(
+                                        text = tab.label,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 11.sp
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = Color(0xFFFAFBF9).copy(alpha = 0.9f),
+                                    labelColor = Color(0xFF475569),
+                                    selectedContainerColor = Color(0xFFD0F838),
+                                    selectedLabelColor = Color(0xFF111827)
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = Color(0xFFE2E8F0),
+                                    selectedBorderColor = Color(0xFF8DC600)
+                                ),
+                                modifier = Modifier.testTag("tab_${tab.name.lowercase()}")
+                            )
+                        }
                     }
                 }
-            }
 
-            // 4. Tab Content Area
-            item {
-                when (uiState.activeTab) {
-                    CustomizationTab.COLOR -> {
-                        ColorPicker(
-                            selectedColor = uiState.territoryColor,
-                            onColorSelected = { viewModel.selectTerritoryColor(it) }
-                        )
-                    }
-                    CustomizationTab.BACKGROUND -> {
-                        BackgroundSelector(
-                            selectedBackground = uiState.flag.background,
-                            onSelect = { viewModel.selectBackground(it) }
-                        )
-                    }
-                    CustomizationTab.PATTERN -> {
-                        PatternSelector(
-                            flag = uiState.flag,
-                            selectedPattern = uiState.flag.pattern,
-                            onSelect = { viewModel.selectPattern(it) }
-                        )
-                    }
-                    CustomizationTab.EMBLEM -> {
-                        EmblemSelector(
-                            flag = uiState.flag,
-                            selectedEmblem = uiState.flag.emblem,
-                            onSelect = { viewModel.selectEmblem(it) }
-                        )
-                    }
-                    CustomizationTab.BORDER -> {
-                        BorderSelector(
-                            flag = uiState.flag,
-                            selectedBorder = uiState.flag.border,
-                            onSelect = { viewModel.selectBorder(it) }
-                        )
+                // 4. Tab Content Area
+                item {
+                    when (uiState.activeTab) {
+                        CustomizationTab.COLOR -> {
+                            ColorPicker(
+                                selectedColor = uiState.territoryColor,
+                                onColorSelected = { viewModel.selectTerritoryColor(it) }
+                            )
+                        }
+                        CustomizationTab.BACKGROUND -> {
+                            BackgroundSelector(
+                                selectedBackground = uiState.flag.background,
+                                onSelect = { viewModel.selectBackground(it) }
+                            )
+                        }
+                        CustomizationTab.PATTERN -> {
+                            PatternSelector(
+                                flag = uiState.flag,
+                                selectedPattern = uiState.flag.pattern,
+                                onSelect = { viewModel.selectPattern(it) }
+                            )
+                        }
+                        CustomizationTab.EMBLEM -> {
+                            EmblemSelector(
+                                flag = uiState.flag,
+                                selectedEmblem = uiState.flag.emblem,
+                                onSelect = { viewModel.selectEmblem(it) }
+                            )
+                        }
+                        CustomizationTab.BORDER -> {
+                            BorderSelector(
+                                flag = uiState.flag,
+                                selectedBorder = uiState.flag.border,
+                                onSelect = { viewModel.selectBorder(it) }
+                            )
+                        }
                     }
                 }
-            }
 
-            // 5. Save Action Button
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = { viewModel.saveCustomization() },
-                    enabled = !uiState.isSaving,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .testTag("save_customization_button"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ColorElectricLime,
-                        contentColor = Color.Black,
-                        disabledContainerColor = Color(0xFF2E3846),
-                        disabledContentColor = ColorTextSecondary
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (uiState.isSaving) {
-                        CircularProgressIndicator(
-                            color = Color.Black,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "DEPLOYING CONFIG...",
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Save,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "SAVE VISUAL IDENTITY",
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
+                // 5. Save Action Button
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { viewModel.saveCustomization() },
+                        enabled = !uiState.isSaving,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .testTag("save_customization_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD0F838),
+                            contentColor = Color(0xFF111827),
+                            disabledContainerColor = Color(0xFFD0F838).copy(alpha = 0.5f),
+                            disabledContentColor = Color(0xFF111827).copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        if (uiState.isSaving) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF111827),
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "DEPLOYING CONFIG...",
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Save,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "SAVE VISUAL IDENTITY",
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -299,16 +300,16 @@ private fun BackgroundSelector(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ColorDarkCard)
-            .border(1.dp, Color(0xFF272D38), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFAFBF9).copy(alpha = 0.95f))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
             .padding(16.dp)
             .testTag("background_selector")
     ) {
         Text(
             text = "FLAG BACKGROUND BASE",
             style = MaterialTheme.typography.labelSmall,
-            color = ColorTextSecondary,
+            color = Color(0xFF64748B),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
@@ -326,10 +327,10 @@ private fun BackgroundSelector(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(ColorDarkSurfaceElevated)
+                        .background(if (isSelected) Color(0xFFE6FCF8) else Color(0xFFF1F5F2))
                         .border(
                             width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) ColorElectricLime else Color(0xFF2E3846),
+                            color = if (isSelected) Color(0xFF8DC600) else Color(0xFFE2E8F0),
                             shape = RoundedCornerShape(10.dp)
                         )
                         .clickable { onSelect(bg.id) }
@@ -343,12 +344,12 @@ private fun BackgroundSelector(
                             .size(20.dp)
                             .clip(CircleShape)
                             .background(bg.color)
-                            .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                            .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
                     )
                     Text(
                         text = bg.displayName,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isSelected) ColorElectricLime else ColorTextPrimary,
+                        color = if (isSelected) Color(0xFF111827) else Color(0xFF475569),
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
                 }
@@ -367,16 +368,16 @@ private fun PatternSelector(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ColorDarkCard)
-            .border(1.dp, Color(0xFF272D38), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFAFBF9).copy(alpha = 0.95f))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
             .padding(16.dp)
             .testTag("pattern_selector")
     ) {
         Text(
             text = "GEOMETRIC PATTERN DIVISION",
             style = MaterialTheme.typography.labelSmall,
-            color = ColorTextSecondary,
+            color = Color(0xFF64748B),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
@@ -395,10 +396,10 @@ private fun PatternSelector(
                     modifier = Modifier
                         .width(155.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(ColorDarkSurfaceElevated)
+                        .background(if (isSelected) Color(0xFFE6FCF8) else Color(0xFFF1F5F2))
                         .border(
                             width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) ColorElectricLime else Color(0xFF2E3846),
+                            color = if (isSelected) Color(0xFF8DC600) else Color(0xFFE2E8F0),
                             shape = RoundedCornerShape(10.dp)
                         )
                         .clickable { onSelect(pattern.id) }
@@ -417,14 +418,14 @@ private fun PatternSelector(
                     Text(
                         text = pattern.displayName,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isSelected) ColorElectricLime else ColorTextPrimary,
+                        color = if (isSelected) Color(0xFF111827) else Color(0xFF475569),
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 11.sp
                     )
                     Text(
                         text = pattern.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = ColorTextSecondary,
+                        color = Color(0xFF64748B),
                         fontSize = 9.sp
                     )
                 }
@@ -443,16 +444,16 @@ private fun EmblemSelector(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ColorDarkCard)
-            .border(1.dp, Color(0xFF272D38), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFAFBF9).copy(alpha = 0.95f))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
             .padding(16.dp)
             .testTag("emblem_selector")
     ) {
         Text(
             text = "TACTICAL SECTOR EMBLEMS",
             style = MaterialTheme.typography.labelSmall,
-            color = ColorTextSecondary,
+            color = Color(0xFF64748B),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
@@ -471,10 +472,10 @@ private fun EmblemSelector(
                     modifier = Modifier
                         .width(155.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(ColorDarkSurfaceElevated)
+                        .background(if (isSelected) Color(0xFFE6FCF8) else Color(0xFFF1F5F2))
                         .border(
                             width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) ColorElectricLime else Color(0xFF2E3846),
+                            color = if (isSelected) Color(0xFF8DC600) else Color(0xFFE2E8F0),
                             shape = RoundedCornerShape(10.dp)
                         )
                         .clickable { onSelect(emblem.id) }
@@ -493,14 +494,14 @@ private fun EmblemSelector(
                     Text(
                         text = emblem.displayName,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isSelected) ColorElectricLime else ColorTextPrimary,
+                        color = if (isSelected) Color(0xFF111827) else Color(0xFF475569),
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 11.sp
                     )
                     Text(
                         text = emblem.lore,
                         style = MaterialTheme.typography.bodySmall,
-                        color = ColorTextSecondary,
+                        color = Color(0xFF64748B),
                         fontSize = 9.sp,
                         maxLines = 1
                     )
@@ -520,16 +521,16 @@ private fun BorderSelector(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ColorDarkCard)
-            .border(1.dp, Color(0xFF272D38), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFAFBF9).copy(alpha = 0.95f))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
             .padding(16.dp)
             .testTag("border_selector")
     ) {
         Text(
             text = "FLAG BORDER & TRIM FRAME",
             style = MaterialTheme.typography.labelSmall,
-            color = ColorTextSecondary,
+            color = Color(0xFF64748B),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
@@ -548,10 +549,10 @@ private fun BorderSelector(
                     modifier = Modifier
                         .width(155.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(ColorDarkSurfaceElevated)
+                        .background(if (isSelected) Color(0xFFE6FCF8) else Color(0xFFF1F5F2))
                         .border(
                             width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) ColorElectricLime else Color(0xFF2E3846),
+                            color = if (isSelected) Color(0xFF8DC600) else Color(0xFFE2E8F0),
                             shape = RoundedCornerShape(10.dp)
                         )
                         .clickable { onSelect(border.id) }
@@ -570,7 +571,7 @@ private fun BorderSelector(
                     Text(
                         text = border.displayName,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isSelected) ColorElectricLime else ColorTextPrimary,
+                        color = if (isSelected) Color(0xFF111827) else Color(0xFF475569),
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 11.sp
                     )
@@ -579,3 +580,4 @@ private fun BorderSelector(
         }
     }
 }
+
