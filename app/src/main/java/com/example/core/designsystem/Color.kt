@@ -82,6 +82,18 @@ object RunColors {
     val BadgeCyan = Color(0xFFD8F7F6)
     val BadgeAmber = Color(0xFFFDF0D5)
     val BadgeSage = Color(0xFFE8EEDB)
+
+    // Theme Compatibility Aliases
+    val ElectricLimeDark = Color(0xFF5C6B12)
+    val ElectricLimePill = Color(0xFFF2FAC9)
+    val LightBackground = Color(0xFFEBEAE5)
+    val LightOnBackground = Color(0xFF14171A)
+    val LightSurface = Color(0xFFFAFBF6)
+    val LightOnSurface = Color(0xFF14171A)
+    val LightSurfaceVariant = Color(0xFFF4F3EF)
+    val LightOnSurfaceMuted = Color(0xFF6B7178)
+    val LightOnSurfaceSubtle = Color(0xFF9AA0A6)
+    val LightCardBorder = Color(0xFFE4E2DC)
 }
 
 // Aliases for seamless usage across screens

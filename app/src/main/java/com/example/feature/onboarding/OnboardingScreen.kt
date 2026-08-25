@@ -58,7 +58,7 @@ import androidx.compose.ui.unit.sp
 import com.example.core.designsystem.RunColors
 
 data class OnboardingStep(
-    val phaseBadge: String,
+    val badge: String,
     val stepEyebrow: String,
     val title: String,
     val description: String,
@@ -71,7 +71,7 @@ data class OnboardingStep(
 
 private val steps = listOf(
     OnboardingStep(
-        phaseBadge = "PHASE 01 // LOCOMOTION",
+        badge = "LOCOMOTION PROTOCOL",
         stepEyebrow = "STEP ONE // MOVEMENT PROTOCOL",
         title = "Every Run Becomes Ground You Hold.",
         description = "Your GPS trace draws the perimeter. Close the loop in the real world and the territory is yours to defend.",
@@ -82,7 +82,7 @@ private val steps = listOf(
         signalParam = "Outdoor Required"
     ),
     OnboardingStep(
-        phaseBadge = "PHASE 02 // TERRITORY",
+        badge = "TERRITORY GRID",
         stepEyebrow = "STEP TWO // GROUND CONTROL",
         title = "Claim It. Shape It. Defend It.",
         description = "Closed loops become polygons on the live map. Expand your borders, or lose them to whoever runs harder.",
@@ -93,7 +93,7 @@ private val steps = listOf(
         signalParam = "Zero Signal Loss"
     ),
     OnboardingStep(
-        phaseBadge = "PHASE 03 // SYNDICATE DOMINANCE",
+        badge = "SYNDICATE DOMINANCE",
         stepEyebrow = "STEP THREE // ALIGNMENT",
         title = "Ascend The Factions.",
         description = "Pledge to a faction and stack your captures toward regional dominance. Every meter you hold counts for your colors.",
@@ -227,7 +227,7 @@ fun OnboardingScreen(
                                 )
                                 Spacer(modifier = Modifier.width(7.dp))
                                 Text(
-                                    text = step.phaseBadge,
+                                    text = step.badge,
                                     style = TextStyle(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,

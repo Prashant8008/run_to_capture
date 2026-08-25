@@ -58,7 +58,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.core.designsystem.*
-import com.example.core.designsystem.components.TacticalMapBackground
 import com.example.domain.model.FlagBackground
 import com.example.domain.model.FlagBorder
 import com.example.domain.model.FlagConfig
@@ -93,10 +92,10 @@ fun FlagCreatorScreen(
         }
     }
 
-    TacticalMapBackground(
-        modifier = modifier.fillMaxSize(),
-        showRadarPulse = true,
-        overlayAlpha = 0.40f
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(RunColors.Background)
     ) {
         Scaffold(
             topBar = {
@@ -111,7 +110,7 @@ fun FlagCreatorScreen(
                                 letterSpacing = 1.sp
                             )
                             Text(
-                                text = "PHASE 4 // VISUAL IDENTITY & FLAG FORGE",
+                                text = "VISUAL IDENTITY & FLAG FORGE",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color(0xFF659900),
                                 fontWeight = FontWeight.SemiBold
