@@ -77,7 +77,9 @@ data class MapUiState(
     val activeBattle: com.example.domain.model.BattleSession? = null,
     val showAttackPreparationModal: Boolean = false,
     val battleEvaluation: com.example.domain.model.BattleChallengeEvaluation? = null,
-    val unreadNotificationCount: Int = 0
+    val unreadNotificationCount: Int = 0,
+    val showAcquisitionOverlay: Boolean = !WorldMapViewModel.hasCalibratedInitialLocation,
+    val hasCalibratedLocation: Boolean = WorldMapViewModel.hasCalibratedInitialLocation
 )
 
 class WorldMapViewModel(
@@ -791,6 +793,20 @@ class WorldMapViewModel(
                 defenseLevel = 80
             )
         )
+    }
+
+    fun dismissAcquisitionOverlay() {
+        hasCalibratedInitialLocation = true
+        _uiState.update {
+            it.copy(
+                showAcquisitionOverlay = false,
+                hasCalibratedLocation = true
+            )
+        }
+    }
+
+    companion object {
+        var hasCalibratedInitialLocation: Boolean = false
     }
 
     class Factory(

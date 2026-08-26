@@ -142,6 +142,8 @@ fun RunNavGraph(
                 authRepository = appModule.authRepository,
                 healthRepository = appModule.healthRepository,
                 customizationRepository = appModule.customizationRepository,
+                runSessionDao = appModule.databaseModule.runSessionDao,
+                supabaseSyncService = appModule.supabaseSyncService,
                 onNavigateToMap = {
                     navController.navigate(RunDestinations.MAP) {
                         popUpTo(RunDestinations.MAP) { inclusive = true }

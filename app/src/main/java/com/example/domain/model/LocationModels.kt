@@ -42,6 +42,7 @@ sealed class LocationError {
     object GpsDisabled : LocationError()
     data class PoorAccuracy(val accuracyMeters: Float) : LocationError()
     data class LocationUnavailable(val message: String = "Location signal lost") : LocationError()
+    data class SpeedLimitExceeded(val speedKmh: Double, val maxAllowedKmh: Double = 28.0) : LocationError()
 }
 
 @JsonClass(generateAdapter = true)
@@ -54,7 +55,8 @@ data class GpsPoint(
     val speed: Float = 0f,
     val accuracy: Float = 0f,
     val heading: Float = 0f,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val isSpeedRestricted: Boolean = false
 ) {
     val toLatLng: LatLng get() = LatLng(latitude, longitude)
     val toUserLocation: UserLocation get() = UserLocation(
@@ -77,10 +79,15 @@ data class ActiveRunStats(
     val durationSeconds: Long = 0,
     val currentSpeedMps: Float = 0f,
     val avgSpeedMps: Double = 0.0,
+    val maxSpeedMps: Float = 0f,
     val lastKnownLocation: UserLocation? = null,
     val gpsStatus: GpsSignalStatus = GpsSignalStatus.SEARCHING,
     val error: LocationError? = null,
-    val isOffline: Boolean = false
+    val isOffline: Boolean = false,
+    val isSpeedRestricted: Boolean = false,
+    val speedRestrictionWarning: String? = null,
+    val speedRestrictedDistanceMeters: Double = 0.0,
+    val speedViolationCount: Int = 0
 ) {
     val distanceKm: Double get() = distanceMeters / 1000.0
     val formattedDistance: String get() = "%.2f km".format(distanceKm)
@@ -111,6 +118,7 @@ data class ActiveRunStats(
     }
 
     val speedKmh: Double get() = currentSpeedMps * 3.6
+    val maxSpeedKmh: Double get() = maxSpeedMps * 3.6
     val formattedSpeed: String get() = "%.1f km/h".format(speedKmh)
 }
 
@@ -128,7 +136,10 @@ data class RunSessionResult(
     val validationPassed: Boolean,
     val validationMessage: String = "All trajectory and integrity checks passed",
     val isOffline: Boolean = false,
-    val capturedTerritoriesCount: Int = 0
+    val capturedTerritoriesCount: Int = 0,
+    val maxSpeedKmh: Double = 0.0,
+    val speedViolationCount: Int = 0,
+    val speedRestrictedDistanceMeters: Double = 0.0
 ) {
     val distanceKm: Double get() = distanceMeters / 1000.0
     val formattedDistance: String get() = "%.2f km".format(distanceKm)

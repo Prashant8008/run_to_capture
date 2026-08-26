@@ -14,15 +14,20 @@ import com.example.domain.model.TerritoryExpansionRuleConfig
 import com.example.domain.repository.TerritoryRepository
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import com.example.core.supabase.SupabaseSyncService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 class TerritoryRepositoryImpl(
     private val territoryDao: TerritoryDao,
     private val authRepository: com.example.domain.repository.AuthRepository? = null,
     private val competitiveRepository: com.example.domain.repository.CompetitiveRepository? = null,
-    private val expansionEngine: TerritoryExpansionEngine = TerritoryExpansionEngine()
+    private val expansionEngine: TerritoryExpansionEngine = TerritoryExpansionEngine(),
+    private val supabaseSyncService: SupabaseSyncService = SupabaseSyncService(territoryDao)
 ) : TerritoryRepository {
 
     private val moshi = Moshi.Builder().build()
@@ -151,6 +156,13 @@ class TerritoryRepositoryImpl(
             isSynced = true
         )
         territoryDao.insertTerritory(entity)
+
+        // Asynchronously sync to Supabase Cloud
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                supabaseSyncService.uploadCapturedTerritory(expansion)
+            } catch (_: Exception) {}
+        }
     }
 
     override suspend fun getAllDevTerritories(): List<DevTerritory> {
@@ -164,7 +176,13 @@ class TerritoryRepositoryImpl(
     }
 
     override suspend fun seedInitialSectorsIfEmpty() {
-        // Check if database already has territories
+        // Try fetching live global territories from Supabase first
+        try {
+            val remoteSynced = supabaseSyncService.fetchAndSyncWorldTerritories()
+            if (remoteSynced.isNotEmpty()) return
+        } catch (_: Exception) {}
+
+        // Check if local Room database already has territories
         val existing = territoryDao.getTerritoriesForUser("operative_local")
         if (existing.isEmpty()) {
             val seeds = getInitialSeedTerritories()

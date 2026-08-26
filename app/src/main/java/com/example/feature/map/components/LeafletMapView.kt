@@ -42,7 +42,8 @@ fun LeafletMapView(
             setBackgroundColor(0xFF0F172A.toInt())
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            // Use SOFTWARE or standard LAYER_TYPE to avoid MESA driver / render node failures in container / emulators
+            setLayerType(View.LAYER_TYPE_NONE, null)
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -72,11 +73,20 @@ fun LeafletMapView(
         }
     }
 
-    DisposableEffect(lifecycleOwner, webView) {
+    DisposableEffect(lifecycleOwner, webView, bridge) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> webView.onResume()
-                Lifecycle.Event.ON_PAUSE -> webView.onPause()
+                Lifecycle.Event.ON_RESUME -> {
+                    bridge.resumeRendering()
+                    webView.onResume()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    bridge.pauseRendering()
+                    webView.onPause()
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    bridge.pauseRendering()
+                }
                 else -> {}
             }
         }
