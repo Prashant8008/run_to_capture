@@ -35,8 +35,6 @@ interface LeafletMapController {
     fun zoomOut()
     fun panBy(dx: Int, dy: Int)
     fun setTileUrl(url: String, subdomains: String = "abcd", maxZoom: Int = 19, attribution: String = "")
-    fun pauseRendering()
-    fun resumeRendering()
 }
 
 interface MapEventListener {
@@ -59,23 +57,12 @@ class LeafletBridge(
     private val webViewRef = WeakReference(webView)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var eventListener: MapEventListener? = null
-    @Volatile
-    private var isRenderingPaused: Boolean = false
 
     fun setEventListener(listener: MapEventListener?) {
         this.eventListener = listener
     }
 
-    override fun pauseRendering() {
-        isRenderingPaused = true
-    }
-
-    override fun resumeRendering() {
-        isRenderingPaused = false
-    }
-
     private fun evaluateJavascript(script: String) {
-        if (isRenderingPaused) return
         mainHandler.post {
             webViewRef.get()?.evaluateJavascript(script, null)
         }

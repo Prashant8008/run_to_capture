@@ -43,9 +43,7 @@ class LocationManager(
 
     companion object {
         const val MAX_VALID_ACCURACY_METERS = 35.0f
-        const val MAX_RUNNING_SPEED_KMH = 28.0 // 28.0 km/h hard ceiling for human running / anti-vehicular cheat
-        const val MAX_RUNNING_SPEED_MPS = 7.78f // ~28.0 km/h (28.0 / 3.6)
-        const val WARNING_RUNNING_SPEED_KMH = 24.0 // High-speed running warning threshold
+        const val MAX_RUNNING_SPEED_MPS = 15.0f // ~54 km/h max realistic human sprint / downhill
         const val MIN_POINT_DISTANCE_METERS = 2.0f
         const val MAX_TELEPORT_DISTANCE_METERS = 250.0 // Teleport anomaly threshold
         const val GPS_GAP_TIME_THRESHOLD_MS = 30_000L // 30s gap
@@ -157,47 +155,10 @@ class LocationManager(
             return
         }
 
-        // Calculate instantaneous segment speed (m/s and km/h)
-        val timeDeltaSec = if (lastLoc != null) (now - lastLoc.timestamp) / 1000.0 else 0.0
-        val segmentSpeedMps = if (lastLoc != null && timeDeltaSec > 0.4) {
-            (distanceDelta / timeDeltaSec).toFloat()
-        } else {
-            location.speedMps
-        }
-
-        // Prefer GPS hardware speed if positive, otherwise fall back to point distance/time
-        val effectiveSpeedMps = if (location.speedMps > 0.1f) location.speedMps else segmentSpeedMps
-        val effectiveSpeedKmh = effectiveSpeedMps * 3.6
-
-        // Speed restriction anti-cheat check: strictly enforce running limit (max 28 km/h)
-        val isSpeedRestricted = effectiveSpeedKmh > MAX_RUNNING_SPEED_KMH
-
-        val currentStats = _activeRunStats.value
-        val (newTotalDistance, newRestrictedDistance, newViolations, speedWarning) = if (isSpeedRestricted) {
-            Log.w("LocationManager", "Speed restriction triggered: %.1f km/h > %.1f km/h. Distance ignored.".format(effectiveSpeedKmh, MAX_RUNNING_SPEED_KMH))
-            _errorState.value = LocationError.SpeedLimitExceeded(effectiveSpeedKmh, MAX_RUNNING_SPEED_KMH)
-            Quadruple(
-                currentStats.distanceMeters, // Running distance is not incremented while in vehicle/speed violation
-                currentStats.speedRestrictedDistanceMeters + distanceDelta,
-                currentStats.speedViolationCount + 1,
-                "SPEED LIMIT EXCEEDED (%.1f km/h > 28 km/h) • DISTANCE PAUSED".format(effectiveSpeedKmh)
-            )
-        } else {
-            if (_errorState.value is LocationError.SpeedLimitExceeded) {
-                _errorState.value = null
-            }
-            Quadruple(
-                currentStats.distanceMeters + distanceDelta,
-                currentStats.speedRestrictedDistanceMeters,
-                currentStats.speedViolationCount,
-                null
-            )
-        }
-
-        val newPointsCount = currentStats.pointsCount + 1
-        val durationSec = currentStats.durationSeconds
-        val avgSpeed = if (durationSec > 0) newTotalDistance / durationSec else effectiveSpeedMps.toDouble()
-        val newMaxSpeed = maxOf(currentStats.maxSpeedMps, effectiveSpeedMps)
+        val newTotalDistance = _activeRunStats.value.distanceMeters + distanceDelta
+        val newPointsCount = _activeRunStats.value.pointsCount + 1
+        val durationSec = _activeRunStats.value.durationSeconds
+        val avgSpeed = if (durationSec > 0) newTotalDistance / durationSec else location.speedMps.toDouble()
         val isOffline = networkMonitor?.checkCurrentConnectivity() == false
 
         _activeRunStats.update {
@@ -206,16 +167,11 @@ class LocationManager(
                 trackingState = TrackingState.TRACKING,
                 pointsCount = newPointsCount,
                 distanceMeters = newTotalDistance,
-                currentSpeedMps = effectiveSpeedMps,
+                currentSpeedMps = location.speedMps,
                 avgSpeedMps = avgSpeed,
-                maxSpeedMps = newMaxSpeed,
                 lastKnownLocation = location,
                 gpsStatus = _gpsStatus.value,
-                isOffline = isOffline,
-                isSpeedRestricted = isSpeedRestricted,
-                speedRestrictionWarning = speedWarning,
-                speedRestrictedDistanceMeters = newRestrictedDistance,
-                speedViolationCount = newViolations
+                isOffline = isOffline
             )
         }
 
@@ -229,18 +185,15 @@ class LocationManager(
                     latitude = location.latitude,
                     longitude = location.longitude,
                     altitude = location.altitudeMeters,
-                    speed = effectiveSpeedMps,
+                    speed = location.speedMps,
                     accuracy = location.accuracyMeters,
                     heading = location.heading,
-                    timestamp = location.timestamp,
-                    isSpeedRestricted = isSpeedRestricted
+                    timestamp = location.timestamp
                 )
                 _activeSessionPoints.update { it + gpsPoint }
             }
         }
     }
-
-    private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
     // ==========================================
     // RUN STATE MACHINE ACTIONS
@@ -421,19 +374,11 @@ class LocationManager(
             // Estimate calories: ~60 kcal per km for average runner
             val calories = ((distanceM / 1000.0) * 62.0).toInt().coerceAtLeast(0)
 
-            val violations = currentStats.speedViolationCount
-            val restrictedDist = currentStats.speedRestrictedDistanceMeters
-            val maxSpeedKmh = currentStats.maxSpeedKmh
-
             val validationPassed = durationSec >= 0 && distanceM >= 0.0
-            val validationMsg = when {
-                violations > 0 -> "Verified running trajectory: %.2f km accepted. %d vehicular speed anomalies detected (%.1f m restricted).".format(
-                    distanceM / 1000.0,
-                    violations,
-                    restrictedDist
-                )
-                isOnline -> "Telemetry verified. Speed limit (max 28 km/h) & anti-teleport checks cleared."
-                else -> "Offline run saved locally. Telemetry queued for sync."
+            val validationMsg = if (isOnline) {
+                "Telemetry verified. Anti-teleport checks cleared."
+            } else {
+                "Offline run saved locally. Telemetry queued for sync."
             }
 
             val result = RunSessionResult(
@@ -449,10 +394,7 @@ class LocationManager(
                 syncStatus = syncStatus,
                 validationPassed = validationPassed,
                 validationMessage = validationMsg,
-                isOffline = !isOnline,
-                maxSpeedKmh = maxSpeedKmh,
-                speedViolationCount = violations,
-                speedRestrictedDistanceMeters = restrictedDist
+                isOffline = !isOnline
             )
 
             // Persist final completion in Room Database

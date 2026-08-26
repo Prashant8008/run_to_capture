@@ -38,7 +38,6 @@ class TerritoryExpansionEngine(
 
         var totalDist = 0.0
         var validPoints = 0
-        var speedViolations = 0
         var prevPoint: GpsPoint? = null
 
         for (pt in points) {
@@ -54,24 +53,16 @@ class TerritoryExpansionEngine(
                 )
 
                 val timeDeltaSec = (pt.timestamp - prevPoint.timestamp) / 1000.0
-                if (timeDeltaSec > 0.3) {
+                if (timeDeltaSec > 0) {
                     val speed = dist / timeDeltaSec
-                    if (speed > config.maxSpeedLimitMps || pt.isSpeedRestricted) {
-                        speedViolations++
-                        // If speed exceeds extreme vehicular threshold (e.g. > 60 km/h), reject immediately
-                        if (speed > config.maxSpeedLimitMps * 2.0) {
-                            return ValidationResult(
-                                isValid = false,
-                                reason = "Extreme vehicular speed anomaly detected (%.1f km/h > %.1f km/h limit)".format(
-                                    speed * 3.6, config.maxSpeedLimitMps * 3.6
-                                )
+                    if (speed > config.maxSpeedLimitMps) {
+                        return ValidationResult(
+                            isValid = false,
+                            reason = "Trajectory speed limit anomaly detected (%.1f km/h > %.1f km/h)".format(
+                                speed * 3.6, config.maxSpeedLimitMps * 3.6
                             )
-                        }
-                    } else {
-                        totalDist += dist
+                        )
                     }
-                } else if (!pt.isSpeedRestricted) {
-                    totalDist += dist
                 }
 
                 // Check for single step teleport jumps
@@ -81,25 +72,17 @@ class TerritoryExpansionEngine(
                         reason = "Teleportation anomaly detected (jump of %.1f m in %.1fs)".format(dist, timeDeltaSec)
                     )
                 }
+
+                totalDist += dist
             }
             prevPoint = pt
             validPoints++
         }
 
-        // If more than 60% of points were vehicular speeding violations, reject the whole trajectory
-        if (validPoints > 5 && speedViolations > (validPoints * 0.6)) {
-            return ValidationResult(
-                isValid = false,
-                reason = "Excessive vehicular transit detected ($speedViolations speeding fixes). Running speed limit is %.1f km/h.".format(
-                    config.maxSpeedLimitMps * 3.6
-                )
-            )
-        }
-
         if (totalDist < config.minRunDistanceMeters) {
             return ValidationResult(
                 isValid = false,
-                reason = "Validated running distance (%.1f m) below minimum threshold (%.1f m)".format(totalDist, config.minRunDistanceMeters)
+                reason = "Total distance (%.1f m) below minimum threshold (%.1f m)".format(totalDist, config.minRunDistanceMeters)
             )
         }
 
@@ -154,26 +137,11 @@ class TerritoryExpansionEngine(
 
         validationNotes.add("Trajectory integrity validated: %.1f meters covered".format(valResult.totalDistanceMeters))
 
-        // 2. H3 Coverage (filter to points within valid running speed limits)
-        val validPoints = runPoints.filter { !it.isSpeedRestricted && it.accuracy <= 40.0f }
-        val speedRestrictedPoints = runPoints.filter { it.isSpeedRestricted }
-
-        val pathCoords = validPoints.map { LatLng(it.latitude, it.longitude) }
+        // 2. H3 Coverage
+        val pathCoords = runPoints.map { LatLng(it.latitude, it.longitude) }
         val rawTraversedCells = computeH3Coverage(pathCoords, config)
         val uniqueTraversedCells = rawTraversedCells.distinct()
-
-        // Also compute cells traversed while speeding to give explicit rejection feedback
-        val speedingPathCoords = speedRestrictedPoints.map { LatLng(it.latitude, it.longitude) }
-        val speedingCells = if (speedingPathCoords.isNotEmpty()) {
-            computeH3Coverage(speedingPathCoords, config).distinct()
-        } else {
-            emptyList()
-        }
-
-        validationNotes.add("H3 Hex Coverage: ${uniqueTraversedCells.size} valid cells traversed at running pace")
-        if (speedingCells.isNotEmpty()) {
-            validationNotes.add("Speed Restriction: ${speedingCells.size} cells filtered due to vehicular speed (> %.1f km/h)".format(config.maxSpeedLimitMps * 3.6))
-        }
+        validationNotes.add("H3 Hex Coverage: ${uniqueTraversedCells.size} unique cells traversed")
 
         // 3. Existing Territory Analysis
         val cellArea = H3SpatialIndex.cellAreaSqMeters(config.h3Resolution)
@@ -182,13 +150,6 @@ class TerritoryExpansionEngine(
         // 4. Eligible New Cells Evaluation
         val eligibleNewCells = mutableSetOf<String>()
         val rejectedCells = mutableMapOf<String, RejectedCellReason>()
-
-        // Tag speeding cells as explicitly rejected
-        for (speedCell in speedingCells) {
-            if (!uniqueTraversedCells.contains(speedCell) && !existingCells.contains(speedCell)) {
-                rejectedCells[speedCell] = RejectedCellReason.SPEED_LIMIT_EXCEEDED
-            }
-        }
 
         // Connected active territory accumulator for adjacency traversal
         val currentTerritoryPool = existingCells.toMutableSet()

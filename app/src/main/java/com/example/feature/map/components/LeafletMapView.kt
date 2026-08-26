@@ -13,7 +13,10 @@ import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -32,8 +35,9 @@ fun LeafletMapView(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    var reloadTrigger by remember { mutableIntStateOf(0) }
 
-    val webView = remember {
+    val webView = remember(reloadTrigger) {
         WebView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -42,7 +46,7 @@ fun LeafletMapView(
             setBackgroundColor(0xFF0F172A.toInt())
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
-            // Use SOFTWARE or standard LAYER_TYPE to avoid MESA driver / render node failures in container / emulators
+            // Use LAYER_TYPE_NONE to avoid Mesa rendernode GPU crashes on headless/emulator environments
             setLayerType(View.LAYER_TYPE_NONE, null)
             settings.apply {
                 javaScriptEnabled = true
@@ -73,20 +77,11 @@ fun LeafletMapView(
         }
     }
 
-    DisposableEffect(lifecycleOwner, webView, bridge) {
+    DisposableEffect(lifecycleOwner, webView) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    bridge.resumeRendering()
-                    webView.onResume()
-                }
-                Lifecycle.Event.ON_PAUSE -> {
-                    bridge.pauseRendering()
-                    webView.onPause()
-                }
-                Lifecycle.Event.ON_STOP -> {
-                    bridge.pauseRendering()
-                }
+                Lifecycle.Event.ON_RESUME -> webView.onResume()
+                Lifecycle.Event.ON_PAUSE -> webView.onPause()
                 else -> {}
             }
         }
@@ -125,13 +120,14 @@ fun LeafletMapView(
                 view: WebView?,
                 detail: RenderProcessGoneDetail?
             ): Boolean {
-                // Prevent app termination when Chromium renderer process terminates
+                // Prevent app termination and cleanly trigger auto-recovery
                 try {
                     view?.let { wv ->
                         (wv.parent as? ViewGroup)?.removeView(wv)
                         wv.destroy()
                     }
                 } catch (_: Exception) {}
+                reloadTrigger++
                 return true
             }
         }

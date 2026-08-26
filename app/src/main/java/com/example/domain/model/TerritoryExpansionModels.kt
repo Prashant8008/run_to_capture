@@ -12,15 +12,13 @@ data class TerritoryExpansionRuleConfig(
     val maxNewCellsPerRun: Int = 15, // Maximum expansion quota ceiling per run
     val minRunDistanceMeters: Double = 50.0,
     val minGpsPoints: Int = 2,
-    val maxSpeedLimitMps: Double = 7.78, // ~28 km/h (Strict human running limit, rejects vehicles/cycling)
+    val maxSpeedLimitMps: Double = 14.0, // ~50 km/h (rejects vehicle/teleportation)
     val maxSingleStepDistanceMeters: Double = 250.0, // Anti-teleport threshold
     val h3Resolution: Int = 9,
     val allowEnemyTakeover: Boolean = false,
     val defenseMultiplier: Double = 1.0,
     val configVersion: String = "1.0.0-server"
-) {
-    val maxSpeedLimitKmh: Double get() = maxSpeedLimitMps * 3.6
-}
+)
 
 enum class RejectedCellReason(val label: String, val description: String) {
     DUPLICATE_ALREADY_OWNED("ALREADY OWNED", "Hex cell is already part of your syndicate territory"),

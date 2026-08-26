@@ -1,7 +1,5 @@
 package com.example.data.repository
 
-import com.example.core.supabase.SupabaseSyncService
-import com.example.core.supabase.model.SupabaseProfile
 import com.example.domain.model.AuthState
 import com.example.domain.model.Challenge
 import com.example.domain.model.ChallengeCondition
@@ -14,12 +12,10 @@ import com.example.domain.repository.AuthRepository
 import com.example.domain.repository.CompetitiveRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 class CompetitiveRepositoryImpl(
-    private val authRepository: AuthRepository,
-    private val supabaseSyncService: SupabaseSyncService? = null
+    private val authRepository: AuthRepository
 ) : CompetitiveRepository {
 
     // In-memory mock server state for challenges
@@ -64,98 +60,36 @@ class CompetitiveRepositoryImpl(
     override fun getLeaderboard(
         category: LeaderboardCategory,
         period: LeaderboardPeriod
-    ): Flow<List<LeaderboardEntry>> = flow {
-        // First try to fetch real profiles from Supabase Cloud
-        val remoteProfiles = try {
-            supabaseSyncService?.fetchLeaderboardProfiles() ?: emptyList()
-        } catch (_: Exception) {
-            emptyList()
-        }
-
-        val authState = authRepository.authState.value
-        val currentUser = if (authState is AuthState.Authenticated) authState.user else null
-
-        val serverList = mutableListOf<LeaderboardEntry>()
-
-        if (remoteProfiles.isNotEmpty()) {
-            for (p in remoteProfiles) {
-                val faction = try { Faction.valueOf(p.faction.uppercase()) } catch (_: Exception) { Faction.CIPHER }
-                val score = when (category) {
-                    LeaderboardCategory.TERRITORY -> p.totalAreaSqMeters
-                    LeaderboardCategory.DISTANCE -> p.totalDistanceMeters
-                    LeaderboardCategory.CAPTURES -> p.territoriesCount.toDouble()
-                    LeaderboardCategory.DEFENSES -> 0.0
-                    LeaderboardCategory.WINS -> p.territoriesCount.toDouble()
-                }
-                val formattedScore = when (category) {
-                    LeaderboardCategory.TERRITORY -> if (score >= 1000000) "%.1f km²".format(score / 1000000.0) else "%.0f m²".format(score)
-                    LeaderboardCategory.DISTANCE -> "%.1f km".format(score / 1000.0)
-                    else -> score.toInt().toString()
-                }
-                serverList.add(
-                    LeaderboardEntry(
-                        rank = 0,
-                        userId = p.id,
-                        displayName = p.displayName,
-                        avatarUrl = p.avatarUrl,
-                        faction = faction,
-                        flagConfig = null,
-                        score = score,
-                        formattedScore = formattedScore
-                    )
-                )
-            }
-        }
-
-        // If current user is not already in remote profiles list, add them
-        if (currentUser != null && serverList.none { it.userId == currentUser.id }) {
-            val userScore = when (category) {
-                LeaderboardCategory.TERRITORY -> currentUser.totalAreaSqMeters
-                LeaderboardCategory.CAPTURES -> currentUser.territoriesCapturedCount.toDouble()
-                LeaderboardCategory.DEFENSES -> 0.0
-                LeaderboardCategory.WINS -> currentUser.territoriesCapturedCount.toDouble()
-                LeaderboardCategory.DISTANCE -> currentUser.totalDistanceMeters
-            }
-            val userFormattedScore = when (category) {
-                LeaderboardCategory.TERRITORY -> if (userScore >= 1000000) "%.1f km²".format(userScore / 1000000.0) else "%.0f m²".format(userScore)
-                LeaderboardCategory.DISTANCE -> "%.1f km".format(userScore / 1000.0)
-                else -> userScore.toInt().toString()
-            }
-            serverList.add(
-                LeaderboardEntry(
-                    rank = 0,
-                    userId = currentUser.id,
-                    displayName = currentUser.displayName,
-                    avatarUrl = currentUser.avatarUrl,
-                    faction = currentUser.faction,
-                    flagConfig = currentUser.flag,
-                    score = userScore,
-                    formattedScore = userFormattedScore
-                )
-            )
-        }
-
-        // If server list has fewer than 5 entries (e.g. fresh database), seed realistic operatives
-        if (serverList.size < 5) {
+    ): Flow<List<LeaderboardEntry>> {
+        return authRepository.authState.map { authState ->
+            val currentUser = if (authState is AuthState.Authenticated) authState.user else null
+            
+            // Server-generated mock list
+            val serverList = mutableListOf<LeaderboardEntry>()
+            
             val mockNames = listOf("ZeroCool", "AcidBurn", "CrashOverride", "CerealKiller", "LordNikon", "Phantom", "Ghost", "Specter")
             val mockFactions = listOf(Faction.CIPHER, Faction.APEX, Faction.SOLARIS)
-            for (i in 0 until (8 - serverList.size)) {
+            
+            // Generate some random opponents
+            for (i in 0 until 15) {
                 val score = when (category) {
-                    LeaderboardCategory.TERRITORY -> 12000.0 + (85000.0 * Math.random())
-                    LeaderboardCategory.CAPTURES -> 1.0 + (35 * Math.random()).toInt()
-                    LeaderboardCategory.DEFENSES -> 0.0 + (15 * Math.random()).toInt()
-                    LeaderboardCategory.WINS -> 1.0 + (25 * Math.random()).toInt()
-                    LeaderboardCategory.DISTANCE -> 8000.0 + (120000.0 * Math.random())
+                    LeaderboardCategory.TERRITORY -> 10000.0 + (100000.0 * Math.random())
+                    LeaderboardCategory.CAPTURES -> 1.0 + (50 * Math.random()).toInt()
+                    LeaderboardCategory.DEFENSES -> 0.0 + (20 * Math.random()).toInt()
+                    LeaderboardCategory.WINS -> 1.0 + (30 * Math.random()).toInt()
+                    LeaderboardCategory.DISTANCE -> 5000.0 + (200000.0 * Math.random())
                 }
+                
                 val formattedScore = when (category) {
-                    LeaderboardCategory.TERRITORY -> if (score >= 1000000) "%.1f km²".format(score / 1000000.0) else "%.0f m²".format(score)
+                    LeaderboardCategory.TERRITORY -> "%.0f m²".format(score)
                     LeaderboardCategory.DISTANCE -> "%.1f km".format(score / 1000.0)
                     else -> score.toInt().toString()
                 }
+
                 serverList.add(
                     LeaderboardEntry(
-                        rank = 0,
-                        userId = "syndicate_agent_$i",
+                        rank = 0, // Will sort later
+                        userId = "bot_$i",
                         displayName = mockNames[i % mockNames.size] + "_${10 + i}",
                         avatarUrl = null,
                         faction = mockFactions[i % mockFactions.size],
@@ -165,14 +99,43 @@ class CompetitiveRepositoryImpl(
                     )
                 )
             }
+            
+            // Inject current user
+            if (currentUser != null) {
+                val userScore = when (category) {
+                    LeaderboardCategory.TERRITORY -> currentUser.totalAreaSqMeters
+                    LeaderboardCategory.CAPTURES -> currentUser.territoriesCapturedCount.toDouble()
+                    LeaderboardCategory.DEFENSES -> 0.0 // not tracked currently
+                    LeaderboardCategory.WINS -> currentUser.territoriesCapturedCount.toDouble()
+                    LeaderboardCategory.DISTANCE -> currentUser.totalDistanceMeters
+                }
+                
+                val userFormattedScore = when (category) {
+                    LeaderboardCategory.TERRITORY -> "%.0f m²".format(userScore)
+                    LeaderboardCategory.DISTANCE -> "%.1f km".format(userScore / 1000.0)
+                    else -> userScore.toInt().toString()
+                }
+                
+                serverList.add(
+                    LeaderboardEntry(
+                        rank = 0,
+                        userId = currentUser.id,
+                        displayName = currentUser.displayName,
+                        avatarUrl = currentUser.avatarUrl,
+                        faction = currentUser.faction,
+                        flagConfig = currentUser.flag,
+                        score = userScore,
+                        formattedScore = userFormattedScore
+                    )
+                )
+            }
+            
+            // Sort and rank
+            serverList.sortByDescending { it.score }
+            serverList.mapIndexed { index, entry -> 
+                entry.copy(rank = index + 1)
+            }
         }
-
-        // Sort and rank
-        serverList.sortByDescending { it.score }
-        val ranked = serverList.mapIndexed { index, entry ->
-            entry.copy(rank = index + 1)
-        }
-        emit(ranked)
     }
 
     override fun getActiveChallenges(): Flow<List<Challenge>> {

@@ -89,16 +89,11 @@ class AppModule(private val context: Context) {
         com.example.core.territory.TerritoryExpansionEngine()
     }
 
-    val supabaseSyncService: com.example.core.supabase.SupabaseSyncService by lazy {
-        com.example.core.supabase.SupabaseSyncService(databaseModule.territoryDao)
-    }
-
     val territoryRepository: com.example.domain.repository.TerritoryRepository by lazy {
         com.example.data.repository.TerritoryRepositoryImpl(
             territoryDao = databaseModule.territoryDao,
             authRepository = authRepository,
-            expansionEngine = territoryExpansionEngine,
-            supabaseSyncService = supabaseSyncService
+            expansionEngine = territoryExpansionEngine
         )
     }
 
@@ -112,8 +107,7 @@ class AppModule(private val context: Context) {
 
     val competitiveRepository: com.example.domain.repository.CompetitiveRepository by lazy {
         com.example.data.repository.CompetitiveRepositoryImpl(
-            authRepository = authRepository,
-            supabaseSyncService = supabaseSyncService
+            authRepository = authRepository
         )
     }
 

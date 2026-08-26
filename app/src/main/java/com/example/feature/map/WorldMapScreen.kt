@@ -4,10 +4,8 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -57,7 +55,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
@@ -134,6 +131,9 @@ fun WorldMapScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    var showAcquisitionOverlay by remember { mutableStateOf(true) }
+    var hasRevealedMap by remember { mutableStateOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -147,19 +147,20 @@ fun WorldMapScreen(
         com.example.core.sync.SyncManager.scheduleSync(context)
     }
 
-    // Auto-reveal with sliding animation only on the initial GPS location fix/calibration
-    LaunchedEffect(uiState.userLocation, uiState.isMapReady, uiState.showAcquisitionOverlay) {
-        if (uiState.userLocation != null && uiState.showAcquisitionOverlay) {
+    // Auto-reveal with sliding animation when GPS location fix is acquired
+    LaunchedEffect(uiState.userLocation, uiState.isMapReady) {
+        if (uiState.userLocation != null && !hasRevealedMap) {
+            hasRevealedMap = true
             // Brief pause so user sees coordinates confirmed on the tactical radar
             delay(550)
-            viewModel.dismissAcquisitionOverlay()
+            showAcquisitionOverlay = false
             // Smoothly fly and zoom to the user's location with camera animation
             viewModel.flyToUser(zoom = 16, durationSec = 1.2)
         }
     }
 
     val onEnterMapImmediately: () -> Unit = {
-        viewModel.dismissAcquisitionOverlay()
+        showAcquisitionOverlay = false
         viewModel.flyToUser(zoom = 16, durationSec = 1.0)
     }
 
@@ -396,7 +397,7 @@ fun WorldMapScreen(
 
         // 16. Tactical Location Acquisition & Calibration Overlay with sliding animation
         LocationAcquisitionOverlay(
-            visible = uiState.showAcquisitionOverlay,
+            visible = showAcquisitionOverlay,
             userLocation = uiState.userLocation,
             gpsStatus = uiState.gpsStatus,
             faction = uiState.faction,
@@ -1132,15 +1133,7 @@ private fun ActiveRunHud(
             .testTag("active_run_hud")
             .clip(RoundedCornerShape(20.dp))
             .background(ColorDarkCard.copy(alpha = 0.96f))
-            .border(
-                1.dp,
-                when {
-                    stats.isSpeedRestricted -> ColorApexRed
-                    isPaused -> Color(0xFFFF9500)
-                    else -> ColorElectricLime
-                },
-                RoundedCornerShape(20.dp)
-            )
+            .border(1.dp, if (isPaused) Color(0xFFFF9500) else ColorElectricLime, RoundedCornerShape(20.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -1155,26 +1148,12 @@ private fun ActiveRunHud(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(
-                            when {
-                                stats.isSpeedRestricted -> ColorApexRed
-                                isPaused -> Color(0xFFFF9500)
-                                else -> ColorElectricLime
-                            }
-                        )
+                        .background(if (isPaused) Color(0xFFFF9500) else ColorElectricLime)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = when {
-                        stats.isSpeedRestricted -> "SPEED EXCEEDED"
-                        isPaused -> "RUN PAUSED"
-                        else -> "RUNNING"
-                    },
-                    color = when {
-                        stats.isSpeedRestricted -> ColorApexRed
-                        isPaused -> Color(0xFFFF9500)
-                        else -> ColorElectricLime
-                    },
+                    text = if (isPaused) "RUN PAUSED" else "RUNNING",
+                    color = if (isPaused) Color(0xFFFF9500) else ColorElectricLime,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace,
@@ -1221,39 +1200,7 @@ private fun ActiveRunHud(
             }
         }
 
-        // Active Speed Limit Warning Banner
-        AnimatedVisibility(
-            visible = stats.isSpeedRestricted,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF3D0808))
-                    .border(1.dp, ColorApexRed, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Speed,
-                    contentDescription = "Speed Restriction Warning",
-                    tint = ColorApexRed,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stats.speedRestrictionWarning ?: "SPEED LIMIT EXCEEDED (>28 km/h) • DISTANCE PAUSED",
-                    color = Color(0xFFFFB4AB),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-        }
-
-        // Metrics Grid (Timer, Distance, Pace, Speed, Accuracy)
+        // Metrics Grid (Timer, Distance, Pace, Accuracy)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -1275,17 +1222,6 @@ private fun ActiveRunHud(
                 value = formattedPace,
                 unit = "/km",
                 color = ColorElectricLime
-            )
-            val currentSpeedKmh = stats.speedKmh
-            RunMetricItem(
-                label = "SPEED",
-                value = "%.1f".format(currentSpeedKmh),
-                unit = "km/h",
-                color = when {
-                    currentSpeedKmh > 28.0 -> ColorApexRed
-                    currentSpeedKmh > 20.0 -> ColorSolarisGold
-                    else -> ColorCipherCyan
-                }
             )
             RunMetricItem(
                 label = "ACCURACY",
@@ -1397,15 +1333,6 @@ private fun FinishRunConfirmDialog(
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
                 )
-                if (stats.speedRestrictedDistanceMeters > 0) {
-                    Text(
-                        text = "⚡ Speed Restriction: %.0f m traversed > 28 km/h excluded from total run distance.".format(stats.speedRestrictedDistanceMeters),
-                        color = ColorApexRed,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
             }
         },
         confirmButton = {
@@ -1602,48 +1529,17 @@ private fun CompletedRunSummaryDialog(
                         color = ColorCipherCyan
                     )
                     RunMetricItem(
-                        label = "MAX SPEED",
-                        value = "%.1f".format(result.maxSpeedKmh),
-                        unit = "km/h",
-                        color = if (result.maxSpeedKmh > 28.0) ColorApexRed else ColorElectricLime
-                    )
-                    RunMetricItem(
                         label = "CALORIES",
                         value = "${result.caloriesBurned}",
                         unit = "kcal",
                         color = ColorSolarisGold
                     )
-                }
-
-                // Speed limit / Anti-cheat summary banner
-                if (result.speedViolationCount > 0) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF3D0808))
-                            .border(1.dp, ColorApexRed.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Speed,
-                            contentDescription = null,
-                            tint = ColorApexRed,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "SPEED RESTRICTION: %d fixes exceeded 28 km/h (%.0f m excluded)".format(
-                                result.speedViolationCount,
-                                result.speedRestrictedDistanceMeters
-                            ),
-                            color = Color(0xFFFFB4AB),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
+                    RunMetricItem(
+                        label = "GPS POINTS",
+                        value = "${result.pointsCount}",
+                        unit = "pts",
+                        color = ColorTextPrimary
+                    )
                 }
 
                 // Sync status note

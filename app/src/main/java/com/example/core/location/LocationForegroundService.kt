@@ -76,7 +76,6 @@ class LocationForegroundService : Service() {
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var statsCollectorJob: Job? = null
-    private var periodicSyncJob: Job? = null
 
     private lateinit var notificationManager: NotificationManager
 
@@ -110,7 +109,6 @@ class LocationForegroundService : Service() {
                     startForeground(NOTIFICATION_ID, initialNotification)
                 }
                 observeLocationManagerStats()
-                startPeriodicBatchSync()
             }
 
             ACTION_PAUSE -> {
@@ -201,25 +199,8 @@ class LocationForegroundService : Service() {
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    private fun startPeriodicBatchSync() {
-        periodicSyncJob?.cancel()
-        periodicSyncJob = serviceScope.launch(Dispatchers.IO) {
-            while (true) {
-                kotlinx.coroutines.delay(90_000L) // Batch push every 90 seconds (1.5 minutes)
-                try {
-                    com.example.core.sync.SyncManager.scheduleSync(applicationContext)
-                } catch (_: Exception) {}
-            }
-        }
-    }
-
     private fun stopForegroundTracking() {
         statsCollectorJob?.cancel()
-        periodicSyncJob?.cancel()
-        // Run a final sync flush when the run completes
-        try {
-            com.example.core.sync.SyncManager.scheduleSync(applicationContext)
-        } catch (_: Exception) {}
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

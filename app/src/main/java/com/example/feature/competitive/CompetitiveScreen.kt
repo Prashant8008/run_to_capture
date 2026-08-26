@@ -48,7 +48,6 @@ import com.example.core.designsystem.ColorTacticalCard
 import com.example.core.designsystem.components.RunBottomNavBar
 import com.example.core.designsystem.components.RunNavTab
 import com.example.domain.model.Faction
-import com.example.domain.model.LeaderboardCategory
 import com.example.domain.model.LeaderboardEntry
 
 enum class LeaderboardFilter(val title: String) {
@@ -175,7 +174,7 @@ fun CompetitiveScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(entries) { entry ->
-                        LeaderboardRowItem(entry = entry, category = uiState.selectedCategory)
+                        LeaderboardRowItem(entry = entry)
                     }
                 }
             }
@@ -184,24 +183,24 @@ fun CompetitiveScreen(
 }
 
 @Composable
-private fun LeaderboardRowItem(
-    entry: LeaderboardEntry,
-    category: LeaderboardCategory = LeaderboardCategory.TERRITORY
-) {
-    val isCurrentUser = entry.userId.startsWith("local_") || entry.userId.startsWith("auth_") || entry.displayName.contains("OPERAT", ignoreCase = true)
+private fun LeaderboardRowItem(entry: LeaderboardEntry) {
+    val isCurrentUser = entry.displayName.contains("OPERATOR_01", ignoreCase = true)
     val cardBg = if (isCurrentUser) Color(0xFFEAF4D0) else ColorTacticalCard
     val borderColor = if (isCurrentUser) Color(0xFFC7E88A) else ColorTacticalBorder
 
     val dotColor = when (entry.faction) {
         Faction.CIPHER -> Color(0xFF00F0FF) // Cyan
-        Faction.SOLARIS -> Color(0xFFFFB800) // Gold
-        Faction.APEX -> Color(0xFFFF0055) // Red
+        Faction.SOLARIS -> Color(0xFF8B5CF6) // Purple / Gold
+        Faction.APEX -> Color(0xFF10B981) // Green / Red
     }
 
-    val sectorName = when (entry.faction) {
-        Faction.CIPHER -> "Sector ${entry.rank} • Cipher Grid"
-        Faction.SOLARIS -> "Sector ${entry.rank} • Solaris Network"
-        Faction.APEX -> "Sector ${entry.rank} • Apex Vanguard"
+    val sectorName = when (entry.rank) {
+        1 -> "Sector 7 • Alpha Vanguard"
+        2 -> "Sector 4 • Omega Syndicate"
+        3 -> "Sector 9 • Alpha Vanguard"
+        12 -> "Sector 2 • Neutral Grid"
+        13 -> "Sector 4 • Omega Syndicate"
+        else -> "Sector ${entry.rank} • Regional"
     }
 
     val displayArea = if (entry.formattedScore.isNotBlank()) {
@@ -210,14 +209,6 @@ private fun LeaderboardRowItem(
         String.format("%.1fk", entry.score / 1000.0)
     } else {
         "${entry.score.toInt()}"
-    }
-
-    val categoryLabel = when (category) {
-        LeaderboardCategory.TERRITORY -> "AREA"
-        LeaderboardCategory.DISTANCE -> "DISTANCE"
-        LeaderboardCategory.CAPTURES -> "SECTORS"
-        LeaderboardCategory.WINS -> "VICTORIES"
-        LeaderboardCategory.DEFENSES -> "DEFENSES"
     }
 
     Box(
@@ -304,7 +295,7 @@ private fun LeaderboardRowItem(
                 }
             }
 
-            // Stat on Right
+            // Stat on Right: 14.2k AREA (SQM)
             Column(
                 horizontalAlignment = Alignment.End
             ) {
@@ -317,7 +308,7 @@ private fun LeaderboardRowItem(
                     color = ColorBrandOlive
                 )
                 Text(
-                    text = categoryLabel,
+                    text = "AREA (SQM)",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
