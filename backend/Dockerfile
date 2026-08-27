@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir psycopg2-binary requests
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend /app/backend
