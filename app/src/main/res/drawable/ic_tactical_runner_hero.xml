@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="360dp"
+    android:height="200dp"
+    android:viewportWidth="360"
+    android:viewportHeight="200">
+
+    <!-- Deep Cyber Dark Base Layer -->
+    <path android:pathData="M0,0h360v200h-360z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="360"
+                android:endY="200"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#070B12" />
+                <item android:offset="0.5" android:color="#0D1624" />
+                <item android:offset="1.0" android:color="#05080E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Perspective Grid Terrain (3D Synthwave / Tactical Wireframe) -->
+    <path
+        android:pathData="M0,150 L360,150 M0,165 L360,165 M0,182 L360,182 M0,200 L360,200"
+        android:strokeWidth="1"
+        android:strokeColor="#1E3852" />
+    <path
+        android:pathData="M180,130 L0,200 M180,130 L60,200 M180,130 L120,200 M180,130 L180,200 M180,130 L240,200 M180,130 L300,200 M180,130 L360,200"
+        android:strokeWidth="1"
+        android:strokeColor="#183048" />
+
+    <!-- Captured Territory Polygonal Zone (Glowing Cyan & Volt Fill) -->
+    <path
+        android:pathData="M70,120 L160,80 L250,110 L220,165 L100,155 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#00F0FF">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="70"
+                android:startY="80"
+                android:endX="250"
+                android:endY="165"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#3300F0FF" />
+                <item android:offset="0.6" android:color="#20CCFF00" />
+                <item android:offset="1.0" android:color="#0500F0FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Radar Sweep Arcs & Satellite Rings -->
+    <path
+        android:pathData="M180,100 m-85,0 a85,85 0 1,0 170,0 a85,85 0 1,0 -170,0"
+        android:strokeWidth="0.8"
+        android:strokeColor="#1A3F60"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M180,100 m-55,0 a55,55 0 1,0 110,0 a55,55 0 1,0 -110,0"
+        android:strokeWidth="0.8"
+        android:strokeColor="#245A88"
+        android:fillColor="#00000000" />
+
+    <!-- GPS Satellite Waypoint Nodes -->
+    <path
+        android:pathData="M70,120 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
+        android:fillColor="#00F0FF" />
+    <path
+        android:pathData="M160,80 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
+        android:fillColor="#CCFF00" />
+    <path
+        android:pathData="M250,110 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
+        android:fillColor="#00F0FF" />
+    <path
+        android:pathData="M220,165 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
+        android:fillColor="#FF2A6D" />
+    <path
+        android:pathData="M100,155 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
+        android:fillColor="#CCFF00" />
+
+    <!-- Central Tactical Operative Runner Silhouette -->
+    <!-- Runner Glow Aura -->
+    <path
+        android:pathData="M180,95 m-20,0 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0"
+        android:fillColor="#22CCFF00" />
+
+    <!-- Runner Head / Helmet -->
+    <path
+        android:pathData="M192,62 A7,7 0 1,1 178,62 A7,7 0 1,1 192,62 Z"
+        android:fillColor="#CCFF00" />
+    <path
+        android:pathData="M188,61 L194,62"
+        android:strokeWidth="1.5"
+        android:strokeColor="#00F0FF" />
+
+    <!-- Runner Torso & Limbs (Dynamic Sprint pose) -->
+    <path
+        android:pathData="M180,70 L170,85 L158,82 M180,70 L190,83 L204,86 M180,70 L173,95 L160,118 L148,116 M173,95 L190,110 L202,130"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeColor="#CCFF00"
+        android:fillColor="#00000000" />
+
+    <!-- Tactical Speed Trails & Cyber FX -->
+    <path
+        android:pathData="M152,76 L130,78 M146,88 L122,90 M154,102 L134,104 M150,116 L128,118"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeColor="#00F0FF" />
+
+    <!-- Top HUD Coordinates Header -->
+    <path
+        android:pathData="M24,24 L48,24 M24,24 L24,40 M336,24 L312,24 M336,24 L336,40"
+        android:strokeWidth="1.5"
+        android:strokeColor="#00F0FF" />
+</vector>

@@ -127,20 +127,9 @@ class AuthRepositoryImpl(
                 AuthResult.Failure(errorType, errorMsg)
             }
         } catch (e: IOException) {
-            // Local dev mode fallback if backend server isn't running on host
-            val fallbackUser = AuthUser(
-                id = "dev_${System.currentTimeMillis()}",
-                email = email,
-                displayName = displayName,
-                faction = faction,
-                authProvider = "password"
-            )
-            val fallbackDto = fallbackUser.toDto()
-            secureStorage.accessToken = "dev_token_${System.currentTimeMillis()}"
-            secureStorage.refreshToken = "dev_refresh_${System.currentTimeMillis()}"
-            persistUser(fallbackDto)
-            _authState.value = AuthState.Authenticated(fallbackUser)
-            AuthResult.Success(fallbackUser)
+            val msg = "Cannot connect to server. Please check your internet connection."
+            _authState.value = AuthState.Error(AuthErrorType.NETWORK_FAILURE, msg)
+            AuthResult.Failure(AuthErrorType.NETWORK_FAILURE, msg)
         } catch (e: Exception) {
             val msg = e.message ?: "Registration error"
             _authState.value = AuthState.Error(AuthErrorType.SERVER_ERROR, msg)
@@ -164,26 +153,15 @@ class AuthRepositoryImpl(
                 handleSuccessfulAuth(tokenPair)
             } else {
                 val code = response.code()
-                val errorMsg = if (code == 401) "Invalid email or password" else "Authentication failed"
-                val errorType = if (code == 401) AuthErrorType.INVALID_CREDENTIALS else AuthErrorType.SERVER_ERROR
+                val errorMsg = if (code == 401 || code == 404) "Account not found or incorrect password. Please register first." else "Authentication failed"
+                val errorType = if (code == 401 || code == 404) AuthErrorType.INVALID_CREDENTIALS else AuthErrorType.SERVER_ERROR
                 _authState.value = AuthState.Error(errorType, errorMsg)
                 AuthResult.Failure(errorType, errorMsg)
             }
         } catch (e: IOException) {
-            // Local dev fallback
-            val fallbackUser = AuthUser(
-                id = "dev_user_1",
-                email = email,
-                displayName = email.substringBefore("@").replaceFirstChar { it.uppercase() },
-                faction = Faction.CIPHER,
-                authProvider = "password"
-            )
-            val fallbackDto = fallbackUser.toDto()
-            secureStorage.accessToken = "dev_token_${System.currentTimeMillis()}"
-            secureStorage.refreshToken = "dev_refresh_${System.currentTimeMillis()}"
-            persistUser(fallbackDto)
-            _authState.value = AuthState.Authenticated(fallbackUser)
-            AuthResult.Success(fallbackUser)
+            val msg = "Cannot connect to server at 152.67.1.252:8000. Please check your network."
+            _authState.value = AuthState.Error(AuthErrorType.NETWORK_FAILURE, msg)
+            AuthResult.Failure(AuthErrorType.NETWORK_FAILURE, msg)
         } catch (e: Exception) {
             val msg = e.message ?: "Login error"
             _authState.value = AuthState.Error(AuthErrorType.SERVER_ERROR, msg)
@@ -213,20 +191,9 @@ class AuthRepositoryImpl(
                 AuthResult.Failure(AuthErrorType.GOOGLE_CANCELLATION, errorMsg)
             }
         } catch (e: IOException) {
-            // Dev fallback for Google Auth
-            val fallbackUser = AuthUser(
-                id = "google_runner_dev",
-                email = "runner.google@run2capture.io",
-                displayName = displayName ?: "Google Runner",
-                faction = faction ?: Faction.CIPHER,
-                authProvider = "google"
-            )
-            val fallbackDto = fallbackUser.toDto()
-            secureStorage.accessToken = "dev_google_token_${System.currentTimeMillis()}"
-            secureStorage.refreshToken = "dev_google_refresh_${System.currentTimeMillis()}"
-            persistUser(fallbackDto)
-            _authState.value = AuthState.Authenticated(fallbackUser)
-            AuthResult.Success(fallbackUser)
+            val msg = "Cannot connect to server for Google Sign-In"
+            _authState.value = AuthState.Error(AuthErrorType.NETWORK_FAILURE, msg)
+            AuthResult.Failure(AuthErrorType.NETWORK_FAILURE, msg)
         } catch (e: Exception) {
             val msg = e.message ?: "Google auth error"
             _authState.value = AuthState.Error(AuthErrorType.GOOGLE_CANCELLATION, msg)

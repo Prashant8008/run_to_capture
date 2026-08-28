@@ -59,10 +59,11 @@ import com.example.core.designsystem.RunColors
 
 data class OnboardingStep(
     val badge: String,
+    val phaseNumber: String,
     val stepEyebrow: String,
     val title: String,
     val description: String,
-    val icon: ImageVector,
+    val iconType: String,
     val trackingParam: String,
     val rewardParam: String,
     val minLoopParam: String,
@@ -71,33 +72,36 @@ data class OnboardingStep(
 
 private val steps = listOf(
     OnboardingStep(
-        badge = "LOCOMOTION PROTOCOL",
+        badge = "PHASE 01 // LOCOMOTION",
+        phaseNumber = "01",
         stepEyebrow = "STEP ONE // MOVEMENT PROTOCOL",
         title = "Every Run Becomes Ground You Hold.",
         description = "Your GPS trace draws the perimeter. Close the loop in the real world and the territory is yours to defend.",
-        icon = Icons.Default.DirectionsRun,
+        iconType = "RUNNER",
         trackingParam = "High-Precision GPS",
         rewardParam = "Polygon Capture",
         minLoopParam = "400m Perimeter",
         signalParam = "Outdoor Required"
     ),
     OnboardingStep(
-        badge = "TERRITORY GRID",
+        badge = "PHASE 02 // TERRITORY",
+        phaseNumber = "02",
         stepEyebrow = "STEP TWO // GROUND CONTROL",
         title = "Claim It. Shape It. Defend It.",
         description = "Closed loops become polygons on the live map. Expand your borders, or lose them to whoever runs harder.",
-        icon = Icons.Default.Map,
+        iconType = "CUBE",
         trackingParam = "Real-Time Perimeter",
         rewardParam = "Faction Expansion",
         minLoopParam = "600m Boundary",
         signalParam = "Zero Signal Loss"
     ),
     OnboardingStep(
-        badge = "SYNDICATE DOMINANCE",
+        badge = "PHASE 03 // SYNDICATE DOMINANCE",
+        phaseNumber = "03",
         stepEyebrow = "STEP THREE // ALIGNMENT",
         title = "Ascend The Factions.",
         description = "Pledge to a faction and stack your captures toward regional dominance. Every meter you hold counts for your colors.",
-        icon = Icons.Default.Shield,
+        iconType = "SHIELD",
         trackingParam = "Syndicate Sync",
         rewardParam = "Weekly Multipliers",
         minLoopParam = "Territory Defense",
@@ -106,52 +110,91 @@ private val steps = listOf(
 )
 
 @Composable
-fun CornerBracketWrap(
-    modifier: Modifier = Modifier,
-    icon: ImageVector
+fun StepVisualIcon(
+    iconType: String,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier.size(120.dp),
+        modifier = modifier
+            .size(80.dp)
+            .shadow(6.dp, RoundedCornerShape(24.dp), ambientColor = Color(0x14000000), spotColor = Color(0x1A000000))
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0xFFFAFBF7))
+            .border(1.dp, Color(0xFFDFE2DA), RoundedCornerShape(24.dp)),
         contentAlignment = Alignment.Center
     ) {
-        // 4 Corner Brackets
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val bracketSize = 22.dp.toPx()
-            val stroke = 3.dp.toPx()
-            val color = RunColors.Lime
+        when (iconType) {
+            "RUNNER" -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_tactical_runner_hero),
+                        contentDescription = "Tactical Runner",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(24.dp)),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                }
+            }
+            "CUBE" -> {
+                Canvas(modifier = Modifier.size(42.dp)) {
+                    val center = Offset(size.width / 2, size.height / 2)
+                    val radius = size.width * 0.45f
+                    val hexPath = androidx.compose.ui.graphics.Path()
+                    for (i in 0 until 6) {
+                        val angle = Math.toRadians((60.0 * i) - 30.0)
+                        val x = center.x + (radius * kotlin.math.cos(angle)).toFloat()
+                        val y = center.y + (radius * kotlin.math.sin(angle)).toFloat()
+                        if (i == 0) hexPath.moveTo(x, y) else hexPath.lineTo(x, y)
+                    }
+                    hexPath.close()
 
-            // Top-Left
-            drawLine(color, Offset(0f, 0f), Offset(bracketSize, 0f), strokeWidth = stroke, cap = StrokeCap.Round)
-            drawLine(color, Offset(0f, 0f), Offset(0f, bracketSize), strokeWidth = stroke, cap = StrokeCap.Round)
+                    drawPath(
+                        path = hexPath,
+                        color = RunColors.Ink,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                    )
 
-            // Top-Right
-            drawLine(color, Offset(size.width, 0f), Offset(size.width - bracketSize, 0f), strokeWidth = stroke, cap = StrokeCap.Round)
-            drawLine(color, Offset(size.width, 0f), Offset(size.width, bracketSize), strokeWidth = stroke, cap = StrokeCap.Round)
-
-            // Bottom-Left
-            drawLine(color, Offset(0f, size.height), Offset(bracketSize, size.height), strokeWidth = stroke, cap = StrokeCap.Round)
-            drawLine(color, Offset(0f, size.height), Offset(0f, size.height - bracketSize), strokeWidth = stroke, cap = StrokeCap.Round)
-
-            // Bottom-Right
-            drawLine(color, Offset(size.width, size.height), Offset(size.width - bracketSize, size.height), strokeWidth = stroke, cap = StrokeCap.Round)
-            drawLine(color, Offset(size.width, size.height), Offset(size.width, size.height - bracketSize), strokeWidth = stroke, cap = StrokeCap.Round)
-        }
-
-        // Centered Icon Tile
-        Box(
-            modifier = Modifier
-                .size(76.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xFFEDECE7))
-                .border(1.dp, RunColors.GlassBorder, RoundedCornerShape(22.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = RunColors.Ink,
-                modifier = Modifier.size(36.dp)
-            )
+                    // 3D wireframe interior lime lines
+                    drawLine(
+                        color = RunColors.Lime,
+                        start = center,
+                        end = Offset(center.x, center.y - radius),
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = RunColors.Lime,
+                        start = center,
+                        end = Offset(center.x - radius * 0.866f, center.y + radius * 0.5f),
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = RunColors.Lime,
+                        start = center,
+                        end = Offset(center.x + radius * 0.866f, center.y + radius * 0.5f),
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+            else -> {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Shield",
+                        tint = RunColors.Ink,
+                        modifier = Modifier.size(38.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(RunColors.Lime)
+                    )
+                }
+            }
         }
     }
 }
@@ -282,8 +325,8 @@ fun OnboardingScreen(
                             .fillMaxWidth()
                             .padding(vertical = 12.dp)
                     ) {
-                        // Tactical Corner-Bracket Wrapped Icon Tile
-                        CornerBracketWrap(icon = currentStep.icon)
+                        // Soft Embossed Tactical Icon Tile (Matching Mockups 02, 02B, 02C)
+                        StepVisualIcon(iconType = currentStep.iconType)
 
                         Spacer(modifier = Modifier.height(24.dp))
 
@@ -328,7 +371,49 @@ fun OnboardingScreen(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Briefing Parameters 2x2 Grid (Matching Mockup 03)
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFF6F8F3),
+                            border = BorderStroke(1.dp, Color(0xFFDFE2DA)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("TRACKING", style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = RunColors.Faint))
+                                        Text(currentStep.trackingParam, style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = RunColors.Ink))
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("REWARD", style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = RunColors.Faint))
+                                        Text(currentStep.rewardParam, style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = RunColors.CyanDeep))
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("MIN. LOOP", style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = RunColors.Faint))
+                                        Text(currentStep.minLoopParam, style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = RunColors.Ink))
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("SIGNAL", style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = RunColors.Faint))
+                                        Text(currentStep.signalParam, style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = RunColors.Ink))
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         // Progress Indicator Dots (20dp wide active)
                         Row(

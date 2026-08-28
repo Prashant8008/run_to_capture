@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -79,19 +81,21 @@ fun ForgotPasswordDialog(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icon tile with key
+                // Icon tile with lock (Matching Mockup 06)
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
-                        .background(Color(0xFFEDECE7), RoundedCornerShape(18.dp))
-                        .border(1.dp, RunColors.GlassBorder, RoundedCornerShape(18.dp)),
+                        .size(72.dp)
+                        .shadow(4.dp, RoundedCornerShape(22.dp), ambientColor = Color(0x14000000), spotColor = Color(0x1A000000))
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xFFFAFBF7))
+                        .border(1.dp, Color(0xFFDFE2DA), RoundedCornerShape(22.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Key,
-                        contentDescription = "Security Key",
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Outlined.Lock,
+                        contentDescription = "Security Lock",
                         tint = RunColors.Ink,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
 

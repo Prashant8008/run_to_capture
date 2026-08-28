@@ -69,7 +69,7 @@ fun SplashScreen(
     )
 
     LaunchedEffect(Unit) {
-        delay(1400)
+        delay(1000)
         authRepository.checkSession()
     }
 
@@ -78,10 +78,14 @@ fun SplashScreen(
             is AuthState.Authenticated -> {
                 onNavigateToDashboard()
             }
-            is AuthState.Unauthenticated -> {
+            is AuthState.Unauthenticated, is AuthState.Initial -> {
+                delay(1200)
                 onNavigateToOnboarding()
             }
-            else -> {}
+            else -> {
+                delay(1200)
+                onNavigateToOnboarding()
+            }
         }
     }
 
@@ -110,50 +114,59 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Hexagon Tactical Logo
-            Canvas(modifier = Modifier.size(64.dp)) {
-                val center = Offset(size.width / 2, size.height / 2)
-                val radius = size.width * 0.45f
-                val hexPath = Path()
-                for (i in 0 until 6) {
-                    val angle = Math.toRadians((60.0 * i) - 30.0)
-                    val x = center.x + (radius * cos(angle)).toFloat()
-                    val y = center.y + (radius * sin(angle)).toFloat()
-                    if (i == 0) hexPath.moveTo(x, y) else hexPath.lineTo(x, y)
+            // Embossed Soft Plate with Hexagon Cube Logo (Matching Mockup 01)
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFAFBF7))
+                    .border(1.dp, Color(0xFFDFE2DA), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.size(48.dp)) {
+                    val center = Offset(size.width / 2, size.height / 2)
+                    val radius = size.width * 0.44f
+                    val hexPath = Path()
+                    for (i in 0 until 6) {
+                        val angle = Math.toRadians((60.0 * i) - 30.0)
+                        val x = center.x + (radius * cos(angle)).toFloat()
+                        val y = center.y + (radius * sin(angle)).toFloat()
+                        if (i == 0) hexPath.moveTo(x, y) else hexPath.lineTo(x, y)
+                    }
+                    hexPath.close()
+
+                    drawPath(
+                        path = hexPath,
+                        color = RunColors.Ink,
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                    )
+
+                    // Interior tactical lime cross-lines
+                    drawLine(
+                        color = RunColors.Lime,
+                        start = Offset(center.x, center.y - radius),
+                        end = Offset(center.x, center.y + radius),
+                        strokeWidth = 2.5.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = RunColors.Lime,
+                        start = Offset(center.x - radius * 0.866f, center.y - radius * 0.5f),
+                        end = Offset(center.x + radius * 0.866f, center.y + radius * 0.5f),
+                        strokeWidth = 2.5.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = RunColors.Lime,
+                        start = Offset(center.x - radius * 0.866f, center.y + radius * 0.5f),
+                        end = Offset(center.x + radius * 0.866f, center.y - radius * 0.5f),
+                        strokeWidth = 2.5.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
                 }
-                hexPath.close()
-
-                drawPath(
-                    path = hexPath,
-                    color = RunColors.Ink,
-                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-                )
-
-                // Interior tactical lime cross-lines
-                drawLine(
-                    color = RunColors.Lime,
-                    start = Offset(center.x, center.y - radius),
-                    end = Offset(center.x, center.y + radius),
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = RunColors.Lime,
-                    start = Offset(center.x - radius * 0.866f, center.y - radius * 0.5f),
-                    end = Offset(center.x + radius * 0.866f, center.y + radius * 0.5f),
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = RunColors.Lime,
-                    start = Offset(center.x - radius * 0.866f, center.y + radius * 0.5f),
-                    end = Offset(center.x + radius * 0.866f, center.y - radius * 0.5f),
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // RUN2CAPTURE Title
             Text(
@@ -172,7 +185,7 @@ fun SplashScreen(
             Surface(
                 shape = RoundedCornerShape(50),
                 color = RunColors.CyanTint,
-                border = androidx.compose.foundation.BorderStroke(1.dp, RunColors.Cyan.copy(alpha = 0.35f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, RunColors.Cyan.copy(alpha = 0.4f))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -198,7 +211,7 @@ fun SplashScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(42.dp))
 
             // Tactical Progress Bar
             Box(

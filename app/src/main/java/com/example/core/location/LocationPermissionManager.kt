@@ -86,12 +86,52 @@ class LocationPermissionManager(
     fun isGpsHardwareEnabled(): Boolean {
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
             ?: return false
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                locationManager.isLocationEnabled
+            } else {
+                locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                        locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+            }
+        } catch (_: Exception) {
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                    locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        }
+    }
+
+    fun promptEnableGps(activity: Activity?) {
+        if (activity == null) {
+            openLocationSettings()
+            return
+        }
+        val request = com.google.android.gms.location.LocationRequest.Builder(
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+            1000L
+        ).build()
+        val builder = com.google.android.gms.location.LocationSettingsRequest.Builder()
+            .addLocationRequest(request)
+            .setAlwaysShow(true)
+
+        val client = com.google.android.gms.location.LocationServices.getSettingsClient(activity)
+        client.checkLocationSettings(builder.build())
+            .addOnSuccessListener {
+                refreshStates(activity)
+            }
+            .addOnFailureListener { exception ->
+                if (exception is com.google.android.gms.common.api.ResolvableApiException) {
+                    try {
+                        exception.startResolutionForResult(activity, 1001)
+                    } catch (_: Exception) {
+                        openLocationSettings()
+                    }
+                } else {
+                    openLocationSettings()
+                }
+            }
     }
 
     fun checkPermissionState(activity: Activity? = null): LocationPermissionState {
-        if (hasFineLocationPermission()) {
+        if (hasLocationPermission()) {
             return LocationPermissionState.GRANTED
         }
 
@@ -110,12 +150,7 @@ class LocationPermissionManager(
             }
         }
 
-        // If not granted, could be initial request (DENIED) or permanently denied if already rejected
-        return if (hasCoarseLocationPermission()) {
-            LocationPermissionState.RATIONALE_REQUIRED
-        } else {
-            LocationPermissionState.DENIED
-        }
+        return LocationPermissionState.DENIED
     }
 
     fun evaluateGpsAccuracy(accuracyMeters: Float): GpsSignalStatus {

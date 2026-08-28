@@ -182,12 +182,6 @@ class WorldMapViewModel(
                             if (_uiState.value.isFollowingUser) {
                                 mapController?.setCenter(loc.latitude, loc.longitude, animated = true)
                             }
-                            if (_uiState.value.isDevTerritoryOverlayActive && isFirstFix && _uiState.value.devTerritories.isEmpty()) {
-                                val sampleSectors = generateDevTerritories(loc.latitude, loc.longitude)
-                                viewModelScope.launch {
-                                    territoryRepository?.seedMockTerritories(sampleSectors)
-                                }
-                            }
                         }
                     }
                 }
@@ -288,7 +282,8 @@ class WorldMapViewModel(
                     _uiState.update {
                         it.copy(
                             permissionState = state,
-                            showPermissionRationaleDialog = state == LocationPermissionState.RATIONALE_REQUIRED
+                            showPermissionRationaleDialog = if (state == LocationPermissionState.GRANTED) false else it.showPermissionRationaleDialog,
+                            showPermanentlyDeniedDialog = if (state == LocationPermissionState.GRANTED) false else it.showPermanentlyDeniedDialog
                         )
                     }
                 }
@@ -418,7 +413,9 @@ class WorldMapViewModel(
     }
 
     fun onPermissionResult(fineGranted: Boolean, coarseGranted: Boolean) {
-        if (fineGranted || coarseGranted) {
+        permissionManager?.refreshStates()
+        val isGranted = fineGranted || coarseGranted || permissionManager?.hasLocationPermission() == true
+        if (isGranted) {
             _uiState.update {
                 it.copy(
                     permissionState = LocationPermissionState.GRANTED,
@@ -456,13 +453,65 @@ class WorldMapViewModel(
         _uiState.update { it.copy(locationError = null) }
     }
 
-    fun centerOnUser() {
-        val userLoc = _uiState.value.userLocation
+    fun centerOnUser(activity: android.app.Activity? = null) {
         _uiState.update { it.copy(isFollowingUser = true) }
+        val userLoc = _uiState.value.userLocation
+
         if (userLoc != null) {
-            mapController?.setCenter(userLoc.latitude, userLoc.longitude, animated = true)
+            mapController?.flyTo(userLoc.latitude, userLoc.longitude, zoom = 16, durationSec = 0.8)
+            return
+        }
+
+        // Location is not yet available, diagnose and guide user
+        if (permissionManager != null && !permissionManager.hasLocationPermission()) {
+            val state = permissionManager.checkPermissionState()
+            if (state == LocationPermissionState.PERMANENTLY_DENIED) {
+                _uiState.update { it.copy(showPermanentlyDeniedDialog = true) }
+            } else {
+                _uiState.update { it.copy(showPermissionRationaleDialog = true) }
+            }
+            return
+        }
+
+        if (permissionManager != null && !permissionManager.isGpsHardwareEnabled()) {
+            _uiState.update { it.copy(showGpsDisabledDialog = true) }
+            return
+        }
+
+        // Trigger immediate fetch
+        locationManager?.refreshLocation()
+        val cached = locationManager?.currentLocation?.value ?: locationClient.getLastKnownLocation()
+        if (cached != null) {
+            _uiState.update { it.copy(userLocation = cached, centerLocation = LatLng(cached.latitude, cached.longitude)) }
+            mapController?.setUserLocation(
+                lat = cached.latitude,
+                lng = cached.longitude,
+                accuracy = cached.accuracyMeters,
+                heading = cached.bearingDegrees,
+                colorHex = _uiState.value.territoryColorHex
+            )
+            mapController?.flyTo(cached.latitude, cached.longitude, zoom = 16, durationSec = 0.8)
         } else {
             mapController?.setCenter(MapConfig.DEFAULT_LAT, MapConfig.DEFAULT_LNG, animated = true)
+        }
+    }
+
+    fun promptEnableGps(activity: android.app.Activity?) {
+        permissionManager?.promptEnableGps(activity)
+    }
+
+    fun retryGpsAcquisition(activity: android.app.Activity? = null) {
+        permissionManager?.refreshStates(activity)
+        val hasPerm = permissionManager?.hasLocationPermission() == true
+        if (hasPerm) {
+            _uiState.update {
+                it.copy(
+                    permissionState = LocationPermissionState.GRANTED,
+                    showPermissionRationaleDialog = false,
+                    showPermanentlyDeniedDialog = false
+                )
+            }
+            locationManager?.refreshLocation()
         }
     }
 
@@ -486,20 +535,10 @@ class WorldMapViewModel(
 
     fun toggleDevTerritories() {
         val nextActive = !_uiState.value.isDevTerritoryOverlayActive
-        val center = _uiState.value.userLocation?.toLatLng ?: _uiState.value.centerLocation
-        val sampleSectors = generateDevTerritories(center.latitude, center.longitude)
-
+        _uiState.update { it.copy(isDevTerritoryOverlayActive = nextActive) }
         if (nextActive) {
-            _uiState.update { it.copy(isDevTerritoryOverlayActive = true, devTerritories = sampleSectors) }
-            if (territoryRepository != null) {
-                viewModelScope.launch {
-                    territoryRepository.seedMockTerritories(sampleSectors)
-                }
-            } else {
-                mapController?.renderTerritories(sampleSectors)
-            }
+            mapController?.renderTerritories(_uiState.value.devTerritories)
         } else {
-            _uiState.update { it.copy(isDevTerritoryOverlayActive = false, devTerritories = emptyList(), selectedDevTerritory = null) }
             mapController?.clearTerritories()
         }
     }
@@ -553,8 +592,6 @@ class WorldMapViewModel(
     override fun onMapReady() {
         _uiState.update { it.copy(isMapReady = true, isTileLoading = false, tileError = null) }
         val loc = _uiState.value.userLocation
-        val targetLat = loc?.latitude ?: _uiState.value.centerLocation.latitude
-        val targetLng = loc?.longitude ?: _uiState.value.centerLocation.longitude
 
         if (loc != null) {
             mapController?.setUserLocation(
@@ -569,20 +606,11 @@ class WorldMapViewModel(
             mapController?.setCenter(MapConfig.DEFAULT_LAT, MapConfig.DEFAULT_LNG, animated = false)
         }
 
-        if (_uiState.value.isDevTerritoryOverlayActive) {
-            val sampleSectors = if (_uiState.value.devTerritories.isEmpty()) {
-                generateDevTerritories(targetLat, targetLng)
-            } else {
-                _uiState.value.devTerritories
-            }
-            _uiState.update { it.copy(devTerritories = sampleSectors) }
-            if (territoryRepository != null) {
-                viewModelScope.launch {
-                    territoryRepository.seedMockTerritories(sampleSectors)
-                }
-            } else {
-                mapController?.renderTerritories(sampleSectors)
-            }
+        // Render any existing user-captured territories if available
+        if (_uiState.value.devTerritories.isNotEmpty()) {
+            mapController?.renderTerritories(_uiState.value.devTerritories)
+        } else {
+            mapController?.clearTerritories()
         }
     }
 
@@ -702,95 +730,6 @@ class WorldMapViewModel(
                 tileError = errorMessage ?: "Unable to fetch radar map tiles. Tap to retry."
             )
         }
-    }
-
-    private fun generateDevTerritories(centerLat: Double, centerLng: Double): List<DevTerritory> {
-        return listOf(
-            DevTerritory(
-                id = "sec-cipher-01",
-                name = "ALPHA NEXUS // CIPHER",
-                factionId = Faction.CIPHER.id,
-                colorHex = "#00F0FF",
-                coordinates = listOf(
-                    LatLng(centerLat + 0.0018, centerLng - 0.0035),
-                    LatLng(centerLat + 0.0042, centerLng - 0.0012),
-                    LatLng(centerLat + 0.0031, centerLng + 0.0018),
-                    LatLng(centerLat + 0.0008, centerLng - 0.0005)
-                ),
-                areaSqMeters = 48500.0,
-                defenseLevel = 95
-            ),
-            DevTerritory(
-                id = "sec-apex-02",
-                name = "BRAVO REDOUBT // APEX",
-                factionId = Faction.APEX.id,
-                colorHex = "#FF3B30",
-                coordinates = listOf(
-                    LatLng(centerLat + 0.0008, centerLng + 0.0015),
-                    LatLng(centerLat + 0.0028, centerLng + 0.0048),
-                    LatLng(centerLat - 0.0015, centerLng + 0.0052),
-                    LatLng(centerLat - 0.0012, centerLng + 0.0018)
-                ),
-                areaSqMeters = 62100.0,
-                defenseLevel = 88
-            ),
-            DevTerritory(
-                id = "sec-solaris-03",
-                name = "SOLAR OUTPOST // CONCORD",
-                factionId = Faction.SOLARIS.id,
-                colorHex = "#FF9500",
-                coordinates = listOf(
-                    LatLng(centerLat - 0.0018, centerLng - 0.0015),
-                    LatLng(centerLat - 0.0015, centerLng + 0.0015),
-                    LatLng(centerLat - 0.0045, centerLng + 0.0022),
-                    LatLng(centerLat - 0.0042, centerLng - 0.0028)
-                ),
-                areaSqMeters = 41200.0,
-                defenseLevel = 100
-            ),
-            DevTerritory(
-                id = "sec-forge-04",
-                name = "FORGE ENCLAVE // SYNDICATE",
-                factionId = Faction.CIPHER.id,
-                colorHex = "#CCFF00",
-                coordinates = listOf(
-                    LatLng(centerLat - 0.0005, centerLng - 0.0052),
-                    LatLng(centerLat + 0.0015, centerLng - 0.0042),
-                    LatLng(centerLat + 0.0005, centerLng - 0.0015),
-                    LatLng(centerLat - 0.0025, centerLng - 0.0028)
-                ),
-                areaSqMeters = 33800.0,
-                defenseLevel = 75
-            ),
-            DevTerritory(
-                id = "sec-delta-05",
-                name = "DELTA CITADEL // CONTESTED",
-                factionId = Faction.APEX.id,
-                colorHex = "#AF52DE",
-                coordinates = listOf(
-                    LatLng(centerLat + 0.0035, centerLng - 0.0058),
-                    LatLng(centerLat + 0.0062, centerLng - 0.0038),
-                    LatLng(centerLat + 0.0052, centerLng - 0.0005),
-                    LatLng(centerLat + 0.0028, centerLng - 0.0025)
-                ),
-                areaSqMeters = 51900.0,
-                defenseLevel = 45
-            ),
-            DevTerritory(
-                id = "sec-omega-06",
-                name = "OMEGA HARVESTER // SOLARIS",
-                factionId = Faction.SOLARIS.id,
-                colorHex = "#FF2D55",
-                coordinates = listOf(
-                    LatLng(centerLat - 0.0025, centerLng + 0.0032),
-                    LatLng(centerLat - 0.0020, centerLng + 0.0065),
-                    LatLng(centerLat - 0.0052, centerLng + 0.0058),
-                    LatLng(centerLat - 0.0048, centerLng + 0.0025)
-                ),
-                areaSqMeters = 28400.0,
-                defenseLevel = 80
-            )
-        )
     }
 
     class Factory(

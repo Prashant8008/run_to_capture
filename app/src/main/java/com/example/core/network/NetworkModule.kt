@@ -12,8 +12,8 @@ import java.util.concurrent.TimeUnit
 
 object NetworkModule {
 
-    // Default production HTTPS API endpoint
-    var baseUrl: String = "https://api.run2capture.com/v1/"
+    // Default backend server URL
+    var baseUrl: String = "http://152.67.1.252:8000/"
 
     // Injected token provider for Authorization Bearer header
     var authTokenProvider: (() -> String?)? = null

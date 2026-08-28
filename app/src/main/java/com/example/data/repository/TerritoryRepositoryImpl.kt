@@ -155,56 +155,19 @@ class TerritoryRepositoryImpl(
 
     override suspend fun getAllDevTerritories(): List<DevTerritory> {
         val entities = territoryDao.getTerritoriesForUser("current_user")
-        if (entities.isNotEmpty()) {
-            return entities.map { it.toDevTerritory() }
-        }
-
-        // Return default starting seed territories
-        return getInitialSeedTerritories()
+        return entities.map { it.toDevTerritory() }
     }
 
     override suspend fun seedInitialSectorsIfEmpty() {
-        // Check if database already has territories
-        val existing = territoryDao.getTerritoriesForUser("operative_local")
-        if (existing.isEmpty()) {
-            val seeds = getInitialSeedTerritories()
-            for (seed in seeds) {
-                val hexes = H3SpatialIndex.polylineCoverageToCells(seed.coordinates, 9)
-                territoryDao.insertTerritory(
-                    TerritoryEntity(
-                        id = seed.id,
-                        ownerUserId = "operative_local",
-                        ownerDisplayName = "OPERATIVE",
-                        faction = seed.factionId,
-                        geoJsonCoordinates = formatCoordinates(seed.coordinates),
-                        areaSqMeters = seed.areaSqMeters,
-                        h3HexIndexes = hexes.joinToString(","),
-                        defenseLevel = seed.defenseLevel,
-                        isAuthoritative = true,
-                        isSynced = true
-                    )
-                )
-            }
-        }
+        // No-op: sample/mock data removed
     }
 
     override suspend fun seedMockTerritories(territories: List<DevTerritory>) {
-        val entities = territories.map { seed ->
-            val hexes = H3SpatialIndex.polylineCoverageToCells(seed.coordinates, 9)
-            TerritoryEntity(
-                id = seed.id,
-                ownerUserId = "enemy_bot",
-                ownerDisplayName = "RIVAL OPERATIVE",
-                faction = seed.factionId,
-                geoJsonCoordinates = formatCoordinates(seed.coordinates),
-                areaSqMeters = seed.areaSqMeters,
-                h3HexIndexes = hexes.joinToString(","),
-                defenseLevel = seed.defenseLevel,
-                isAuthoritative = true,
-                isSynced = true
-            )
-        }
-        territoryDao.insertTerritories(entities)
+        // No-op: sample/mock data removed
+    }
+
+    override suspend fun clearAllTerritories() {
+        territoryDao.deleteAllTerritories()
     }
 
     private fun parseCoordinates(json: String): List<LatLng> {

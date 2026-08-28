@@ -1,6 +1,7 @@
 package com.example.feature.map
 
 import android.Manifest
+import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -70,6 +71,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -84,7 +86,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -108,6 +113,7 @@ import com.example.domain.model.DevTerritory
 import com.example.domain.model.Faction
 import com.example.domain.model.GpsSignalStatus
 import com.example.domain.model.LocationError
+import com.example.domain.model.LocationPermissionState
 import com.example.domain.model.RunSessionResult
 import com.example.domain.model.RunState
 import com.example.domain.model.SyncStatus
@@ -131,8 +137,7 @@ fun WorldMapScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    var showAcquisitionOverlay by remember { mutableStateOf(true) }
-    var hasRevealedMap by remember { mutableStateOf(false) }
+    var hasCenteredOnUser by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -142,26 +147,32 @@ fun WorldMapScreen(
         viewModel.onPermissionResult(fineGranted, coarseGranted)
     }
 
-    LaunchedEffect(Unit) {
-        permissionLauncher.launch(LocationPermissionManager.ALL_RUN_PERMISSIONS)
-        com.example.core.sync.SyncManager.scheduleSync(context)
-    }
-
-    // Auto-reveal with sliding animation when GPS location fix is acquired
-    LaunchedEffect(uiState.userLocation, uiState.isMapReady) {
-        if (uiState.userLocation != null && !hasRevealedMap) {
-            hasRevealedMap = true
-            // Brief pause so user sees coordinates confirmed on the tactical radar
-            delay(550)
-            showAcquisitionOverlay = false
-            // Smoothly fly and zoom to the user's location with camera animation
-            viewModel.flyToUser(zoom = 16, durationSec = 1.2)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.retryGpsAcquisition(context as? Activity)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
-    val onEnterMapImmediately: () -> Unit = {
-        showAcquisitionOverlay = false
-        viewModel.flyToUser(zoom = 16, durationSec = 1.0)
+    LaunchedEffect(Unit) {
+        if (viewModel.permissionManager?.hasLocationPermission() == false) {
+            permissionLauncher.launch(LocationPermissionManager.ALL_RUN_PERMISSIONS)
+        }
+        com.example.core.sync.SyncManager.scheduleSync(context)
+    }
+
+    // Smoothly focus on the user's location when GPS location fix is acquired
+    LaunchedEffect(uiState.userLocation, uiState.isMapReady) {
+        if (uiState.userLocation != null && uiState.isMapReady && !hasCenteredOnUser) {
+            hasCenteredOnUser = true
+            viewModel.flyToUser(zoom = 16, durationSec = 1.0)
+        }
     }
 
     val isRunActiveOrPaused = uiState.runState == RunState.RUNNING || uiState.runState == RunState.PAUSED
@@ -206,6 +217,92 @@ fun WorldMapScreen(
                 onRetry = { viewModel.onRetryMapLoad() }
             )
 
+            // Dynamic GPS / Permission Callout Banner
+            if (uiState.permissionState != LocationPermissionState.GRANTED) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF330000))
+                        .border(1.dp, ColorApexRed, RoundedCornerShape(12.dp))
+                        .clickable {
+                            permissionLauncher.launch(LocationPermissionManager.ALL_RUN_PERMISSIONS)
+                        }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .testTag("permission_alert_banner"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOff,
+                        contentDescription = null,
+                        tint = ColorApexRed,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "LOCATION PERMISSION REQUIRED • TAP TO ENABLE",
+                        color = Color(0xFFFFB3B3),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else if (uiState.gpsStatus == GpsSignalStatus.DISABLED) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF332000))
+                        .border(1.dp, Color(0xFFFF9500), RoundedCornerShape(12.dp))
+                        .clickable {
+                            viewModel.promptEnableGps(context as? Activity)
+                        }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .testTag("gps_disabled_banner"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.GpsNotFixed,
+                        contentDescription = null,
+                        tint = Color(0xFFFF9500),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "GPS OFFLINE • TAP TO ACTIVATE SATELLITE LINK",
+                        color = Color(0xFFFFD699),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else if (uiState.gpsStatus == GpsSignalStatus.SEARCHING && uiState.userLocation == null) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ColorDarkSurfaceElevated.copy(alpha = 0.9f))
+                        .border(1.dp, ColorCipherCyan.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .testTag("gps_searching_banner"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(12.dp),
+                        color = ColorCipherCyan,
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = "ACQUIRING GPS LOCK • STAND BY...",
+                        color = ColorCipherCyan,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             // Poor GPS Accuracy Warning Banner
             if (uiState.locationError is LocationError.PoorAccuracy) {
                 val acc = (uiState.locationError as LocationError.PoorAccuracy).accuracyMeters
@@ -228,7 +325,16 @@ fun WorldMapScreen(
             MapControlCardButton(
                 icon = Icons.Default.MyLocation,
                 contentDescription = "Center on GPS Location",
-                onClick = { viewModel.centerOnUser() },
+                onClick = {
+                    val activity = context as? Activity
+                    if (uiState.permissionState != LocationPermissionState.GRANTED) {
+                        permissionLauncher.launch(LocationPermissionManager.ALL_RUN_PERMISSIONS)
+                    } else if (uiState.gpsStatus == GpsSignalStatus.DISABLED) {
+                        viewModel.promptEnableGps(activity)
+                    } else {
+                        viewModel.centerOnUser(activity)
+                    }
+                },
                 testTag = "recenter_location_button"
             )
 
@@ -378,6 +484,10 @@ fun WorldMapScreen(
         // 14. GPS Hardware Disabled Dialog
         if (uiState.showGpsDisabledDialog) {
             GpsDisabledDialog(
+                onEnableGps = {
+                    viewModel.dismissGpsDisabledDialog()
+                    viewModel.promptEnableGps(context as? Activity)
+                },
                 onOpenLocationSettings = {
                     viewModel.dismissGpsDisabledDialog()
                     viewModel.permissionManager?.openLocationSettings()
@@ -394,17 +504,6 @@ fun WorldMapScreen(
                 onDismiss = { viewModel.dismissLayerSelector() }
             )
         }
-
-        // 16. Tactical Location Acquisition & Calibration Overlay with sliding animation
-        LocationAcquisitionOverlay(
-            visible = showAcquisitionOverlay,
-            userLocation = uiState.userLocation,
-            gpsStatus = uiState.gpsStatus,
-            faction = uiState.faction,
-            username = uiState.username,
-            onEnterMapClick = onEnterMapImmediately,
-            modifier = Modifier.fillMaxSize()
-        )
     }
 }
 
@@ -1753,6 +1852,18 @@ private fun TacticalNotificationsDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Hero Graphic Picture
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_tactical_runner_hero),
+                    contentDescription = "Tactical Runner Radar",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, ColorCipherCyan.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+
                 NotificationItem(
                     title = "RADAR SATELLITE LINK ACTIVE",
                     time = "JUST NOW",
@@ -1921,6 +2032,7 @@ private fun PermanentlyDeniedDialog(
 
 @Composable
 private fun GpsDisabledDialog(
+    onEnableGps: () -> Unit,
     onOpenLocationSettings: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1947,18 +2059,25 @@ private fun GpsDisabledDialog(
         },
         text = {
             Text(
-                text = "Device GPS location services are powered off. Please enable GPS in device location settings to acquire tactical satellite coordinates.",
+                text = "Device GPS location services are turned off. Please activate GPS to acquire real-time satellite coordinates and position your operative on the tactical radar.",
                 color = ColorTextSecondary,
                 fontSize = 13.sp,
                 lineHeight = 18.sp
             )
         },
         confirmButton = {
-            RunPrimaryButton(
-                text = "OPEN LOCATION SETTINGS",
-                onClick = onOpenLocationSettings,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                RunPrimaryButton(
+                    text = "ENABLE GPS NOW",
+                    onClick = onEnableGps,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                RunSecondaryButton(
+                    text = "OPEN LOCATION SETTINGS",
+                    onClick = onOpenLocationSettings,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         },
         dismissButton = {
             RunSecondaryButton(

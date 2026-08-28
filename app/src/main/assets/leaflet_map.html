@@ -215,34 +215,6 @@
                 // Setup default tactical tile layer
                 setTileLayer(DEFAULT_TILE_URL, DEFAULT_SUBDOMAINS, 19, DEFAULT_ATTRIBUTION);
 
-                // Add aesthetic baseline sectors matching tactical preview
-                try {
-                    var purplePoly = L.polygon([
-                        [37.7788, -122.4172],
-                        [37.7818, -122.4132],
-                        [37.7745, -122.4108],
-                        [37.7712, -122.4152]
-                    ], {
-                        color: '#8B5CF6',
-                        weight: 3.5,
-                        dashArray: '8, 8',
-                        fillColor: '#8B5CF6',
-                        fillOpacity: 0.28
-                    }).addTo(territoriesLayerGroup);
-
-                    var cyanPoly = L.polygon([
-                        [37.7682, -122.4215],
-                        [37.7725, -122.4175],
-                        [37.7668, -122.4132],
-                        [37.7638, -122.4182]
-                    ], {
-                        color: '#00F0FF',
-                        weight: 4.0,
-                        fillColor: '#00F0FF',
-                        fillOpacity: 0.22
-                    }).addTo(territoriesLayerGroup);
-                } catch(e) {}
-
                 // Map move and zoom events
                 map.on('moveend', function() {
                     if (!map) return;

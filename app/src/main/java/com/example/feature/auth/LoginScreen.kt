@@ -150,59 +150,76 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Top Brand Mark: Hexagon with Lime accent
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .background(Color(0xFFEDECE7), RoundedCornerShape(16.dp))
-                        .border(1.dp, RunColors.GlassBorder, RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
+                // Top Pills Row: FITNESS X PARTNER & RUN2CAPTURE // OPS (Matching Mockup 05)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Hexagon,
-                        contentDescription = "Run2Capture Emblem",
-                        tint = RunColors.LimeDeep,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFFF3F5EE),
+                        border = BorderStroke(1.dp, Color(0xFFDFE2DA))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(RunColors.Cyan)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "FITNESS X PARTNER",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.6.sp,
+                                    color = RunColors.Ink
+                                )
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFFF3F5EE),
+                        border = BorderStroke(1.dp, Color(0xFFDFE2DA))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(RunColors.Lime)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "RUN2CAPTURE // OPS",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.6.sp,
+                                    color = RunColors.Ink
+                                )
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Status Badge: OPERATIVE AUTHENTICATION
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = RunColors.LimeTint,
-                    border = BorderStroke(1.dp, RunColors.Lime.copy(alpha = 0.5f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(RunColors.LimeDeep)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "OPERATIVE AUTHENTICATION",
-                            style = TextStyle(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.8.sp,
-                                color = RunColors.LimeDeep
-                            )
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Headline: Access Sector Uplink
+                // Headline: Tactical Login (Matching Mockup 05)
                 Text(
-                    text = "Access Sector Uplink",
+                    text = "Tactical Login",
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Black,
                         fontSize = 28.sp,
@@ -215,12 +232,38 @@ fun LoginScreen(
 
                 // Subtitle
                 Text(
-                    text = "Sign in to deploy to contested GPS sectors.",
+                    text = "Enter the grid and conquer your sector.",
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                     color = RunColors.Body
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tactical Banner: RUN. EXPAND. CONQUER. THE WORLD IS YOUR GAME BOARD.
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF7F9EE),
+                    border = BorderStroke(1.dp, RunColors.Lime.copy(alpha = 0.6f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "⚡ RUN. EXPAND. CONQUER. THE WORLD IS YOUR GAME BOARD.",
+                            style = TextStyle(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.6.sp,
+                                color = RunColors.LimeDeep
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // Error Message
                 val currentError = uiState.generalError ?: uiState.emailError ?: uiState.passwordError
@@ -272,7 +315,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = uiState.emailInput,
                     onValueChange = viewModel::onEmailChanged,
-                    placeholder = { Text("operative@sector.io", color = RunColors.Faint, fontSize = 14.sp) },
+                    placeholder = { Text("nighthawk07@sector.io", color = RunColors.Faint, fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Email,
@@ -284,12 +327,13 @@ fun LoginScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedBorderColor = RunColors.LimeDeep,
-                        unfocusedBorderColor = RunColors.GlassBorder,
+                        focusedContainerColor = Color(0xFFF6F8F3),
+                        unfocusedContainerColor = Color(0xFFF2F4EE),
+                        focusedBorderColor = RunColors.Cyan,
+                        unfocusedBorderColor = Color(0xFFDFE2DA),
                         focusedTextColor = RunColors.Ink,
-                        unfocusedTextColor = RunColors.Ink
+                        unfocusedTextColor = RunColors.Ink,
+                        cursorColor = RunColors.Cyan
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
@@ -297,7 +341,7 @@ fun LoginScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(2.dp, RoundedCornerShape(16.dp))
+                        .shadow(2.dp, RoundedCornerShape(16.dp), ambientColor = Color(0x08000000), spotColor = Color(0x10000000))
                         .testTag("login_email_input")
                 )
 
@@ -305,7 +349,7 @@ fun LoginScreen(
 
                 // 2. Password Input
                 Text(
-                    text = "PASSCODE",
+                    text = "SECURITY PASSWORD",
                     style = TextStyle(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 10.sp,
@@ -342,12 +386,13 @@ fun LoginScreen(
                     visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedBorderColor = RunColors.LimeDeep,
-                        unfocusedBorderColor = RunColors.GlassBorder,
+                        focusedContainerColor = Color(0xFFF6F8F3),
+                        unfocusedContainerColor = Color(0xFFF2F4EE),
+                        focusedBorderColor = RunColors.Cyan,
+                        unfocusedBorderColor = Color(0xFFDFE2DA),
                         focusedTextColor = RunColors.Ink,
-                        unfocusedTextColor = RunColors.Ink
+                        unfocusedTextColor = RunColors.Ink,
+                        cursorColor = RunColors.Cyan
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
@@ -359,7 +404,7 @@ fun LoginScreen(
                     }),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(2.dp, RoundedCornerShape(16.dp))
+                        .shadow(2.dp, RoundedCornerShape(16.dp), ambientColor = Color(0x08000000), spotColor = Color(0x10000000))
                         .testTag("login_password_input")
                 )
 
@@ -376,7 +421,7 @@ fun LoginScreen(
                             fontFamily = FontFamily.SansSerif,
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = RunColors.LimeDeep
+                            color = RunColors.CyanDeep
                         ),
                         modifier = Modifier
                             .clickable { viewModel.setForgotPasswordDialogVisible(true) }
@@ -384,7 +429,7 @@ fun LoginScreen(
                     )
                 }
 
-                // 3. Primary Button: SIGN IN WITH SECTOR ID
+                // 3. Primary Button: INITIATE UPLINK
                 Button(
                     onClick = {
                         focusManager.clearFocus()
@@ -397,7 +442,7 @@ fun LoginScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(54.dp)
                         .shadow(
                             elevation = 8.dp,
                             shape = RoundedCornerShape(999.dp),
@@ -411,33 +456,27 @@ fun LoginScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "SIGN IN WITH SECTOR ID",
+                            text = "INITIATE UPLINK ⚡",
                             style = TextStyle(
                                 fontFamily = FontFamily.SansSerif,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Black,
-                                letterSpacing = 0.6.sp
+                                letterSpacing = 0.8.sp
                             )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // OR Tactical Divider
+                // OR Divider: ── OR CONTINUE WITH ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     HorizontalDivider(modifier = Modifier.weight(1f), color = RunColors.Divider)
                     Text(
-                        text = "OR",
+                        text = "OR CONTINUE WITH",
                         style = TextStyle(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp,
@@ -451,7 +490,7 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 4. Secondary Ghost Button: SIGN IN WITH GOOGLE
+                // 4. Secondary Ghost Button: Sign In with Google
                 Surface(
                     onClick = { launchGoogleSignIn() },
                     shape = RoundedCornerShape(999.dp),
@@ -460,7 +499,7 @@ fun LoginScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)
-                        .shadow(2.dp, RoundedCornerShape(999.dp))
+                        .shadow(3.dp, RoundedCornerShape(999.dp), ambientColor = Color(0x0D000000), spotColor = Color(0x14000000))
                         .testTag("login_google_button")
                 ) {
                     Row(
@@ -479,10 +518,10 @@ fun LoginScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "SIGN IN WITH GOOGLE",
+                            text = "Sign In with Google",
                             style = TextStyle(
                                 fontFamily = FontFamily.SansSerif,
-                                fontSize = 12.5.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.4.sp,
                                 color = RunColors.Ink
@@ -500,16 +539,16 @@ fun LoginScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "New operative? ",
+                        text = "New operative to the sector? ",
                         style = TextStyle(fontSize = 13.sp, color = RunColors.Body)
                     )
                     Text(
-                        text = "Enlist Now",
+                        text = "Register Call-sign",
                         style = TextStyle(
                             fontFamily = FontFamily.SansSerif,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = RunColors.LimeDeep
+                            color = RunColors.CyanDeep
                         ),
                         modifier = Modifier
                             .clickable { onNavigateToRegister() }

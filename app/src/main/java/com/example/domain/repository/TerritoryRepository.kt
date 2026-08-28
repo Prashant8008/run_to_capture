@@ -38,4 +38,5 @@ interface TerritoryRepository {
     suspend fun saveConfirmedTerritory(expansion: ServerConfirmedExpansion)
     suspend fun seedInitialSectorsIfEmpty()
     suspend fun seedMockTerritories(territories: List<DevTerritory>)
+    suspend fun clearAllTerritories()
 }

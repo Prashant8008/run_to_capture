@@ -8,6 +8,7 @@ Create Date: 2026-08-18 00:01:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '002_create_users_and_sessions'
@@ -17,8 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum type for faction
-    op.execute("DO $$ BEGIN CREATE TYPE factionenum AS ENUM ('APEX', 'CIPHER', 'SOLARIS'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    # Create enum type safely if it does not already exist
+    faction_enum = postgresql.ENUM('APEX', 'CIPHER', 'SOLARIS', name='factionenum', create_type=False)
 
     # Create users table
     op.create_table(
@@ -28,7 +29,7 @@ def upgrade() -> None:
         sa.Column('hashed_password', sa.String(length=255), nullable=True),
         sa.Column('display_name', sa.String(length=100), nullable=False),
         sa.Column('avatar_url', sa.String(length=512), nullable=True),
-        sa.Column('faction', sa.Enum('APEX', 'CIPHER', 'SOLARIS', name='factionenum'), nullable=False, server_default='CIPHER'),
+        sa.Column('faction', faction_enum, nullable=False, server_default='CIPHER'),
         sa.Column('google_id', sa.String(length=255), nullable=True),
         sa.Column('auth_provider', sa.String(length=50), nullable=False, server_default='password'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),

@@ -83,23 +83,43 @@ class LocationManager(
     }
 
     fun startContinuousLocationListening() {
+        permissionManager.refreshStates()
+
         if (!permissionManager.hasLocationPermission()) {
             val isPermanent = permissionManager.checkPermissionState() == LocationPermissionState.PERMANENTLY_DENIED
             _errorState.value = LocationError.PermissionDenied(isPermanent)
             _gpsStatus.value = GpsSignalStatus.DISABLED
             return
+        } else {
+            if (_errorState.value is LocationError.PermissionDenied) {
+                _errorState.value = null
+            }
         }
 
         if (!permissionManager.isGpsHardwareEnabled()) {
             _errorState.value = LocationError.GpsDisabled
             _gpsStatus.value = GpsSignalStatus.DISABLED
             return
+        } else {
+            if (_errorState.value is LocationError.GpsDisabled) {
+                _errorState.value = null
+            }
+            if (_gpsStatus.value == GpsSignalStatus.DISABLED) {
+                _gpsStatus.value = GpsSignalStatus.SEARCHING
+            }
+        }
+
+        // Immediately populate with last known location if available
+        locationClient.getLastKnownLocation()?.let { lastKnown ->
+            _currentLocation.value = lastKnown
+            _gpsStatus.value = permissionManager.evaluateGpsAccuracy(lastKnown.accuracyMeters)
         }
 
         locationUpdatesJob?.cancel()
         locationUpdatesJob = scope.launch {
-            locationClient.getLocationUpdates(1200L)
+            locationClient.getLocationUpdates(1000L)
                 .catch { e ->
+                    Log.w("LocationManager", "Location update flow error: ${e.message}")
                     _errorState.value = LocationError.LocationUnavailable(e.message ?: "GPS stream interrupted")
                     _gpsStatus.value = GpsSignalStatus.SEARCHING
                 }
@@ -107,6 +127,10 @@ class LocationManager(
                     onNewLocationReceived(location)
                 }
         }
+    }
+
+    fun refreshLocation() {
+        startContinuousLocationListening()
     }
 
     private fun onNewLocationReceived(location: UserLocation) {
