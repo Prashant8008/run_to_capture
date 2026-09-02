@@ -386,6 +386,8 @@ fun WorldMapScreen(
                 .fillMaxWidth()
         ) {
             BottomMapHud(
+                formattedTerritoryHeld = uiState.formattedTerritoryHeld,
+                formattedTerritoryGainedToday = uiState.formattedTerritoryGainedToday,
                 onStartRunClick = { viewModel.openRunPreparation() },
                 onNavigateToBattles = onNavigateToNotifications,
                 onNavigateToRank = onNavigateToCompetitive,
@@ -496,12 +498,29 @@ fun WorldMapScreen(
             )
         }
 
-        // 15. Map Layer Selector Dialog
+        // 15. Map Layer Selector & Overlay Filter Dialog
         if (uiState.showLayerSelectorModal) {
             MapLayerSelectionDialog(
                 currentLayer = uiState.selectedMapLayer,
+                showTerritories = uiState.showTerritoriesOverlay,
+                showLaserTrail = uiState.showLaserTrailOverlay,
+                showTacticalPois = uiState.showTacticalPoisOverlay,
+                showRadarGrid = uiState.showRadarGridOverlay,
                 onSelectLayer = { viewModel.selectMapLayer(it) },
+                onToggleTerritories = { viewModel.toggleTerritoriesOverlay() },
+                onToggleLaserTrail = { viewModel.toggleLaserTrailOverlay() },
+                onToggleTacticalPois = { viewModel.toggleTacticalPoisOverlay() },
+                onToggleRadarGrid = { viewModel.toggleRadarGridOverlay() },
                 onDismiss = { viewModel.dismissLayerSelector() }
+            )
+        }
+
+        // 16. Tactical Point of Interest (POI) Dialog
+        if (uiState.showPoiModal && uiState.selectedPoi != null) {
+            TacticalPoiDialog(
+                poi = uiState.selectedPoi!!,
+                onClaim = { viewModel.claimPoi(it) },
+                onDismiss = { viewModel.dismissPoiModal() }
             )
         }
     }
@@ -837,6 +856,8 @@ private fun MapZoomControlCard(
 
 @Composable
 private fun BottomMapHud(
+    formattedTerritoryHeld: String,
+    formattedTerritoryGainedToday: String,
     onStartRunClick: () -> Unit,
     onNavigateToBattles: () -> Unit,
     onNavigateToRank: () -> Unit,
@@ -880,7 +901,7 @@ private fun BottomMapHud(
                     Spacer(modifier = Modifier.height(2.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            text = "1.84 km²",
+                            text = formattedTerritoryHeld,
                             style = TextStyle(
                                 fontFamily = FontFamily.SansSerif,
                                 fontSize = 16.sp,
@@ -890,7 +911,7 @@ private fun BottomMapHud(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "▲ +0.12 today",
+                            text = formattedTerritoryGainedToday,
                             style = TextStyle(
                                 fontFamily = FontFamily.SansSerif,
                                 fontSize = 11.sp,
@@ -2092,7 +2113,15 @@ private fun GpsDisabledDialog(
 @Composable
 private fun MapLayerSelectionDialog(
     currentLayer: MapLayerType,
+    showTerritories: Boolean,
+    showLaserTrail: Boolean,
+    showTacticalPois: Boolean,
+    showRadarGrid: Boolean,
     onSelectLayer: (MapLayerType) -> Unit,
+    onToggleTerritories: () -> Unit,
+    onToggleLaserTrail: () -> Unit,
+    onToggleTacticalPois: () -> Unit,
+    onToggleRadarGrid: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -2101,14 +2130,14 @@ private fun MapLayerSelectionDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.Map,
+                    imageVector = Icons.Default.Layers,
                     contentDescription = null,
                     tint = ColorElectricLime,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "MAP VIEW SELECTION",
+                    text = "MAP LAYERS & OVERLAYS",
                     color = ColorTextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
@@ -2117,11 +2146,17 @@ private fun MapLayerSelectionDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Section 1: Tactical Map Styles
                 Text(
-                    text = "Choose your preferred tactical map rendering style:",
-                    color = ColorTextSecondary,
-                    fontSize = 12.sp
+                    text = "BASE MAP RENDERING STYLE",
+                    color = ColorCipherCyan,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
                 )
 
                 MapLayerType.entries.forEach { layer ->
@@ -2129,15 +2164,15 @@ private fun MapLayerSelectionDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(if (isSelected) ColorDarkSurfaceElevated else Color(0xFF14171E))
                             .border(
                                 1.dp,
                                 if (isSelected) ColorElectricLime else RunColors.CardBorder,
-                                RoundedCornerShape(12.dp)
+                                RoundedCornerShape(10.dp)
                             )
                             .clickable { onSelectLayer(layer) }
-                            .padding(14.dp)
+                            .padding(10.dp)
                             .testTag("layer_option_${layer.name.lowercase()}"),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -2149,14 +2184,14 @@ private fun MapLayerSelectionDialog(
                                     color = if (isSelected) ColorElectricLime else ColorTextPrimary,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp
+                                    fontSize = 12.sp
                                 )
                                 if (layer == MapConfig.DEFAULT_LAYER) {
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "(DEFAULT)",
                                         color = ColorCipherCyan,
-                                        fontSize = 10.sp,
+                                        fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = FontFamily.Monospace
                                     )
@@ -2166,7 +2201,7 @@ private fun MapLayerSelectionDialog(
                             Text(
                                 text = layer.description,
                                 color = ColorTextSecondary,
-                                fontSize = 11.sp
+                                fontSize = 10.sp
                             )
                         }
 
@@ -2175,17 +2210,197 @@ private fun MapLayerSelectionDialog(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Selected",
                                 tint = ColorElectricLime,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
+                }
+
+                // Section 2: Interactive Overlays
+                Text(
+                    text = "TACTICAL OVERLAY FILTERS",
+                    color = ColorCipherCyan,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OverlayToggleRow(
+                        title = "FACTION SECTOR POLYGONS",
+                        subtitle = "Contested territory borders & neon fills",
+                        isActive = showTerritories,
+                        accentColor = ColorCipherCyan,
+                        onToggle = onToggleTerritories
+                    )
+                    OverlayToggleRow(
+                        title = "LASER GPS RUN TRAIL",
+                        subtitle = "Real-time glowing route perimeter",
+                        isActive = showLaserTrail,
+                        accentColor = ColorElectricLime,
+                        onToggle = onToggleLaserTrail
+                    )
+                    OverlayToggleRow(
+                        title = "TACTICAL SUPPLY DROPS & POIs",
+                        subtitle = "Interactive energy nodes, caches & beacons",
+                        isActive = showTacticalPois,
+                        accentColor = ColorSolarisGold,
+                        onToggle = onToggleTacticalPois
+                    )
+                    OverlayToggleRow(
+                        title = "RADAR GRID & RANGE RINGS",
+                        subtitle = "Concentric 300m / 600m / 1km combat radar",
+                        isActive = showRadarGrid,
+                        accentColor = ColorCipherCyan,
+                        onToggle = onToggleRadarGrid
+                    )
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("CLOSE", color = ColorElectricLime, fontFamily = FontFamily.Monospace)
+                Text("APPLY & CLOSE", color = ColorElectricLime, fontFamily = FontFamily.Monospace)
             }
+        }
+    )
+}
+
+@Composable
+private fun OverlayToggleRow(
+    title: String,
+    subtitle: String,
+    isActive: Boolean,
+    accentColor: Color,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isActive) ColorDarkSurfaceElevated else Color(0xFF14171E))
+            .border(
+                1.dp,
+                if (isActive) accentColor.copy(alpha = 0.6f) else RunColors.CardBorder,
+                RoundedCornerShape(8.dp)
+            )
+            .clickable { onToggle() }
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = if (isActive) ColorTextPrimary else ColorTextSecondary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = subtitle,
+                color = ColorTextSecondary,
+                fontSize = 9.sp
+            )
+        }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(if (isActive) accentColor else Color(0xFF2A3441))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = if (isActive) "ACTIVE" else "OFF",
+                color = if (isActive) Color(0xFF0F172A) else ColorTextSecondary,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+@Composable
+private fun TacticalPoiDialog(
+    poi: com.example.domain.model.TacticalPoi,
+    onClaim: (com.example.domain.model.TacticalPoi) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = ColorDarkCard,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = poi.type.icon,
+                    fontSize = 22.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = poi.name,
+                        color = ColorTextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = poi.type.label,
+                        color = Color(android.graphics.Color.parseColor(poi.type.colorHex)),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = poi.description,
+                    color = ColorTextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ColorDarkSurfaceElevated)
+                        .border(1.dp, Color(android.graphics.Color.parseColor(poi.type.colorHex)).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "REWARD / INTEL",
+                        color = ColorTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = poi.rewardText,
+                        color = ColorElectricLime,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            RunPrimaryButton(
+                text = "CLAIM & SECURE INTEL",
+                onClick = { onClaim(poi) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        dismissButton = {
+            RunSecondaryButton(
+                text = "STAND BY",
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     )
 }

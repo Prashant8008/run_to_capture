@@ -136,6 +136,69 @@
             filter: none;
         }
 
+        /* Tactical Supply Crates & POI Markers */
+        .poi-marker-container {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .poi-marker-pulse {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            animation: poi-pulse 2.2s infinite ease-out;
+            pointer-events: none;
+        }
+
+        .poi-badge {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: #0F172A;
+            border: 2px solid #FFCC00;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 12px rgba(255, 204, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .poi-marker-container:hover .poi-badge, .poi-marker-container:active .poi-badge {
+            transform: scale(1.25) translateY(-2px);
+        }
+
+        @keyframes poi-pulse {
+            0% {
+                transform: scale(0.6);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(2.2);
+                opacity: 0;
+            }
+        }
+
+        .poi-tooltip {
+            background: rgba(15, 23, 42, 0.95) !important;
+            border: 1px solid #FFCC00 !important;
+            color: #FFFFFF !important;
+            font-family: ui-monospace, monospace !important;
+            font-size: 10px !important;
+            font-weight: 800 !important;
+            padding: 3px 8px !important;
+            border-radius: 6px !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+            white-space: nowrap !important;
+        }
+
         .territory-tooltip {
             background: rgba(14, 18, 26, 0.92) !important;
             border: 1.5px solid #00F0FF !important;
@@ -169,9 +232,17 @@
         var newCellsLayerGroup = null;
         var expansionPreviewLayerGroup = null;
         var confirmedTerritoryLayerGroup = null;
+        var poisLayerGroup = null;
+        var radarGridLayerGroup = null;
         var activeRoutePolyline = null;
         var activeRouteGlowPolyline = null;
         var isMapInitialized = false;
+
+        // Visibility flags
+        var showTerritories = true;
+        var showPOIs = true;
+        var showRoute = true;
+        var showRadarGrid = true;
 
         // Default to production OpenStreetMap Street View tiles
         var DEFAULT_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -211,6 +282,8 @@
                 newCellsLayerGroup = L.layerGroup().addTo(map);
                 expansionPreviewLayerGroup = L.layerGroup().addTo(map);
                 confirmedTerritoryLayerGroup = L.layerGroup().addTo(map);
+                poisLayerGroup = L.layerGroup().addTo(map);
+                radarGridLayerGroup = L.layerGroup().addTo(map);
 
                 // Setup default tactical tile layer
                 setTileLayer(DEFAULT_TILE_URL, DEFAULT_SUBDOMAINS, 19, DEFAULT_ATTRIBUTION);
@@ -528,11 +601,133 @@
             }
         };
 
-        // Phase 9: Clear Expansion Layers
+        // Clear Expansion Layers
         window.clearExpansionLayers = function() {
             if (newCellsLayerGroup) newCellsLayerGroup.clearLayers();
             if (expansionPreviewLayerGroup) expansionPreviewLayerGroup.clearLayers();
             if (confirmedTerritoryLayerGroup) confirmedTerritoryLayerGroup.clearLayers();
+        };
+
+        // Render Tactical Points of Interest (Supply Crates, Energy Cells, Outposts)
+        window.renderPOIs = function(poisJson) {
+            if (!map || !poisLayerGroup) return;
+            poisLayerGroup.clearLayers();
+            try {
+                var pois = typeof poisJson === 'string' ? JSON.parse(poisJson) : poisJson;
+                if (!Array.isArray(pois)) return;
+
+                pois.forEach(function(poi) {
+                    var lat = poi.latitude !== undefined ? poi.latitude : poi.lat;
+                    var lng = poi.longitude !== undefined ? poi.longitude : poi.lng;
+                    if (lat === undefined || lng === undefined) return;
+
+                    var color = poi.colorHex || '#FFCC00';
+                    var iconEmoji = poi.icon || '📦';
+
+                    var poiHtml = '<div class="poi-marker-container" id="poi-' + poi.id + '">' +
+                                  '<div class="poi-marker-pulse" style="background: ' + color + '40;"></div>' +
+                                  '<div class="poi-badge" style="border-color: ' + color + '; box-shadow: 0 0 14px ' + color + '80;">' +
+                                  iconEmoji +
+                                  '</div>' +
+                                  '</div>';
+
+                    var poiIcon = L.divIcon({
+                        className: 'custom-poi-marker',
+                        html: poiHtml,
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+
+                    var marker = L.marker([lat, lng], { icon: poiIcon, zIndexOffset: 800 });
+
+                    marker.bindTooltip('<span style="color:' + color + '; font-weight:900;">' + iconEmoji + ' ' + (poi.name || 'TACTICAL POI') + '</span><br/><span style="font-size:9px; color:#A0AEC0;">' + (poi.rewardText || 'TAP TO INTERACT') + '</span>', {
+                        direction: 'top',
+                        className: 'poi-tooltip',
+                        opacity: 0.95
+                    });
+
+                    marker.on('click', function() {
+                        if (window.AndroidMapBridge && window.AndroidMapBridge.poiClicked) {
+                            window.AndroidMapBridge.poiClicked(poi.id);
+                        }
+                    });
+
+                    poisLayerGroup.addLayer(marker);
+                });
+            } catch (e) {
+                console.error("Failed to render POIs: ", e);
+            }
+        };
+
+        window.clearPOIs = function() {
+            if (poisLayerGroup) poisLayerGroup.clearLayers();
+        };
+
+        // Render Cyber Tactical Radar Grid & Range Rings
+        window.renderRadarGrid = function(lat, lng) {
+            if (!map || !radarGridLayerGroup) return;
+            radarGridLayerGroup.clearLayers();
+            if (lat === undefined || lng === undefined) return;
+
+            var center = [lat, lng];
+            var ringDistances = [300, 600, 1000]; // 300m, 600m, 1000m concentric combat rings
+            var ringColors = ['#00F0FF', '#00E5FF', '#0284C7'];
+
+            ringDistances.forEach(function(radius, idx) {
+                var ring = L.circle(center, {
+                    radius: radius,
+                    color: ringColors[idx] || '#00F0FF',
+                    weight: 1,
+                    opacity: 0.25 - (idx * 0.05),
+                    fill: false,
+                    dashArray: '6, 8',
+                    interactive: false
+                });
+                radarGridLayerGroup.addLayer(ring);
+            });
+        };
+
+        window.clearRadarGrid = function() {
+            if (radarGridLayerGroup) radarGridLayerGroup.clearLayers();
+        };
+
+        // Global Overlay Visibility Toggles
+        window.setOverlayVisibility = function(showTerritoriesVal, showRouteVal, showPoisVal, showRadarGridVal) {
+            if (!map) return;
+
+            if (territoriesLayerGroup) {
+                if (showTerritoriesVal && !map.hasLayer(territoriesLayerGroup)) {
+                    map.addLayer(territoriesLayerGroup);
+                } else if (!showTerritoriesVal && map.hasLayer(territoriesLayerGroup)) {
+                    map.removeLayer(territoriesLayerGroup);
+                }
+            }
+
+            if (poisLayerGroup) {
+                if (showPoisVal && !map.hasLayer(poisLayerGroup)) {
+                    map.addLayer(poisLayerGroup);
+                } else if (!showPoisVal && map.hasLayer(poisLayerGroup)) {
+                    map.removeLayer(poisLayerGroup);
+                }
+            }
+
+            if (radarGridLayerGroup) {
+                if (showRadarGridVal && !map.hasLayer(radarGridLayerGroup)) {
+                    map.addLayer(radarGridLayerGroup);
+                } else if (!showRadarGridVal && map.hasLayer(radarGridLayerGroup)) {
+                    map.removeLayer(radarGridLayerGroup);
+                }
+            }
+
+            if (activeRoutePolyline && activeRouteGlowPolyline) {
+                if (showRouteVal) {
+                    if (!map.hasLayer(activeRouteGlowPolyline)) map.addLayer(activeRouteGlowPolyline);
+                    if (!map.hasLayer(activeRoutePolyline)) map.addLayer(activeRoutePolyline);
+                } else {
+                    if (map.hasLayer(activeRouteGlowPolyline)) map.removeLayer(activeRouteGlowPolyline);
+                    if (map.hasLayer(activeRoutePolyline)) map.removeLayer(activeRoutePolyline);
+                }
+            }
         };
 
         window.fitBoundsToPoints = function(pointsJson) {

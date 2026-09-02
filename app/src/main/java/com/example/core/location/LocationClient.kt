@@ -5,10 +5,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
-import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
-import android.os.Bundle
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -37,9 +35,13 @@ class DefaultLocationClient(
     private val fusedClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
 ) : LocationClient {
 
+    // Retained strictly for querying whether GPS/location hardware is enabled on device
     private val systemLocationManager: LocationManager? by lazy {
         context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
     }
+
+    @Volatile
+    private var lastKnownLocationCache: UserLocation? = null
 
     override fun hasLocationPermission(): Boolean {
         val fine = ContextCompat.checkSelfPermission(
@@ -81,14 +83,7 @@ class DefaultLocationClient(
     @SuppressLint("MissingPermission")
     override fun getLastKnownLocation(): UserLocation? {
         if (!hasLocationPermission()) return null
-        val lm = systemLocationManager
-
-        val gpsLoc = try { lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER) } catch (_: Exception) { null }
-        val netLoc = try { lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) } catch (_: Exception) { null }
-        val passLoc = try { lm?.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER) } catch (_: Exception) { null }
-
-        val bestLoc = listOfNotNull(gpsLoc, netLoc, passLoc).maxByOrNull { it.time }
-        return bestLoc?.toUserLocation()
+        return lastKnownLocationCache
     }
 
     @SuppressLint("MissingPermission")
@@ -98,34 +93,10 @@ class DefaultLocationClient(
             return@callbackFlow
         }
 
-        // 1. Immediately emit best cached location if available
-        getLastKnownLocation()?.let { cached ->
-            Log.d("LocationClient", "Emitting initial cached location: ${cached.latitude}, ${cached.longitude}")
-            trySend(cached)
-        }
-
-        // 2. Query Google Play Services fused last location and current location immediately
-        try {
-            fusedClient.lastLocation.addOnSuccessListener { loc: Location? ->
-                loc?.let {
-                    Log.d("LocationClient", "Emitting fused lastLocation: ${it.latitude}, ${it.longitude}")
-                    trySend(it.toUserLocation())
-                }
-            }
-            fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener { loc: Location? ->
-                loc?.let {
-                    Log.d("LocationClient", "Emitting fused getCurrentLocation: ${it.latitude}, ${it.longitude}")
-                    trySend(it.toUserLocation())
-                }
-            }
-        } catch (e: Exception) {
-            Log.w("LocationClient", "Failed to query initial fused location: ${e.message}")
-        }
-
-        // 3. Setup continuous high-accuracy fused location request
+        // Setup single-source continuous high-accuracy fused location tracking (Fresh GPS fixes only)
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
             .setMinUpdateIntervalMillis(intervalMs / 2)
-            .setMinUpdateDistanceMeters(0f) // 0m so stationary devices/emulators still get location stream
+            .setMinUpdateDistanceMeters(0f)
             .setWaitForAccurateLocation(false)
             .build()
 
@@ -133,7 +104,9 @@ class DefaultLocationClient(
             override fun onLocationResult(result: LocationResult) {
                 super.onLocationResult(result)
                 result.lastLocation?.let { loc: Location ->
-                    trySend(loc.toUserLocation())
+                    val userLoc = loc.toUserLocation()
+                    lastKnownLocationCache = userLoc
+                    trySend(userLoc)
                 }
             }
         }
@@ -141,57 +114,12 @@ class DefaultLocationClient(
         try {
             fusedClient.requestLocationUpdates(request, fusedCallback, Looper.getMainLooper())
         } catch (e: Exception) {
-            Log.w("LocationClient", "FusedClient request failed, falling back to system LocationManager: ${e.message}")
-        }
-
-        // 4. Also register native system LocationManager listeners as fallback/redundancy
-        val systemListener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                trySend(location.toUserLocation())
-            }
-            override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
-            @Deprecated("Deprecated in Java")
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-        }
-
-        val lm = systemLocationManager
-        if (lm != null) {
-            try {
-                if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                    lm.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER,
-                        intervalMs,
-                        0f,
-                        systemListener,
-                        Looper.getMainLooper()
-                    )
-                }
-            } catch (e: Exception) {
-                Log.w("LocationClient", "GPS_PROVIDER listener registration failed: ${e.message}")
-            }
-
-            try {
-                if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                    lm.requestLocationUpdates(
-                        LocationManager.NETWORK_PROVIDER,
-                        intervalMs,
-                        0f,
-                        systemListener,
-                        Looper.getMainLooper()
-                    )
-                }
-            } catch (e: Exception) {
-                Log.w("LocationClient", "NETWORK_PROVIDER listener registration failed: ${e.message}")
-            }
+            Log.e("LocationClient", "FusedClient requestLocationUpdates failed: ${e.message}")
         }
 
         awaitClose {
             try {
                 fusedClient.removeLocationUpdates(fusedCallback)
-            } catch (_: Exception) {}
-            try {
-                lm?.removeUpdates(systemListener)
             } catch (_: Exception) {}
         }
     }

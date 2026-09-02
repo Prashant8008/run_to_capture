@@ -61,6 +61,11 @@ data class MapUiState(
     val showPermissionRationaleDialog: Boolean = false,
     val showPermanentlyDeniedDialog: Boolean = false,
     val showGpsDisabledDialog: Boolean = false,
+    // Dynamic Territory Stats
+    val userControlledAreaM2: Double = 0.0,
+    val formattedTerritoryHeld: String = "0.00 km²",
+    val formattedTerritoryGainedToday: String = "▲ +0.00 today",
+    val userTerritoryCount: Int = 0,
     // Phase 9: Territory Expansion State
     val expansionPreview: com.example.domain.model.ExpansionPreviewResult? = null,
     val confirmedExpansion: com.example.domain.model.ServerConfirmedExpansion? = null,
@@ -77,7 +82,15 @@ data class MapUiState(
     val activeBattle: com.example.domain.model.BattleSession? = null,
     val showAttackPreparationModal: Boolean = false,
     val battleEvaluation: com.example.domain.model.BattleChallengeEvaluation? = null,
-    val unreadNotificationCount: Int = 0
+    val unreadNotificationCount: Int = 0,
+    // Tactical Map Overlays
+    val showTerritoriesOverlay: Boolean = true,
+    val showLaserTrailOverlay: Boolean = true,
+    val showTacticalPoisOverlay: Boolean = true,
+    val showRadarGridOverlay: Boolean = true,
+    val tacticalPois: List<com.example.domain.model.TacticalPoi> = emptyList(),
+    val selectedPoi: com.example.domain.model.TacticalPoi? = null,
+    val showPoiModal: Boolean = false
 )
 
 class WorldMapViewModel(
@@ -96,6 +109,7 @@ class WorldMapViewModel(
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
 
     private var mapController: LeafletBridge? = null
+    private var hasSeededInitialLocation = false
 
     init {
         observeUserData()
@@ -109,7 +123,33 @@ class WorldMapViewModel(
         if (territoryRepository != null) {
             viewModelScope.launch {
                 territoryRepository.observeAllDevTerritories().collect { territories ->
-                    _uiState.update { it.copy(devTerritories = territories) }
+                    val authState = authRepository.authState.value
+                    val currentUserId = if (authState is com.example.domain.model.AuthState.Authenticated) authState.user.id else ""
+                    val currentUsername = _uiState.value.username
+
+                    // Compute user's controlled territories
+                    val userTerritories = territories.filter {
+                        (currentUserId.isNotBlank() && it.id.contains(currentUserId)) ||
+                        it.name.contains(currentUserId, ignoreCase = true) ||
+                        it.name.contains(currentUsername, ignoreCase = true) ||
+                        (it.factionId.equals(_uiState.value.faction.name, ignoreCase = true) && !it.id.startsWith("sec_"))
+                    }
+                    val userAreaM2 = userTerritories.sumOf { it.areaSqMeters }
+
+                    val formattedHeld = when {
+                        userAreaM2 <= 0.0 -> "0.00 km²"
+                        userAreaM2 >= 10000.0 -> String.format(java.util.Locale.US, "%.2f km²", userAreaM2 / 1_000_000.0)
+                        else -> String.format(java.util.Locale.US, "%.0f m²", userAreaM2)
+                    }
+
+                    _uiState.update { 
+                        it.copy(
+                            devTerritories = territories,
+                            userControlledAreaM2 = userAreaM2,
+                            formattedTerritoryHeld = formattedHeld,
+                            userTerritoryCount = userTerritories.size
+                        ) 
+                    }
                     if (_uiState.value.isMapReady && _uiState.value.isDevTerritoryOverlayActive) {
                         mapController?.renderTerritories(territories)
                     }
@@ -168,6 +208,13 @@ class WorldMapViewModel(
                                 userLocation = loc,
                                 centerLocation = if (current.isFollowingUser) LatLng(loc.latitude, loc.longitude) else current.centerLocation
                             )
+                        }
+
+                        if (!hasSeededInitialLocation) {
+                            hasSeededInitialLocation = true
+                            viewModelScope.launch {
+                                territoryRepository?.seedSectorsAroundLocation(loc.latitude, loc.longitude)
+                            }
                         }
 
                         if (_uiState.value.isMapReady) {
@@ -245,6 +292,21 @@ class WorldMapViewModel(
                                     condition = com.example.domain.model.ChallengeCondition.DISTANCE_KM,
                                     amount = result.distanceMeters / 1000.0
                                 )
+
+                                // Trigger dynamic expansion preview
+                                if (territoryRepository != null && _uiState.value.activePoints.size >= 2) {
+                                    val preview = territoryRepository.calculateExpansionPreview(
+                                        sessionId = result.sessionId,
+                                        userId = userId,
+                                        points = _uiState.value.activePoints
+                                    )
+                                    _uiState.update { 
+                                        it.copy(
+                                            expansionPreview = preview,
+                                            showExpansionModal = preview.validationPassed && preview.gainedAreaSqMeters > 0
+                                        ) 
+                                    }
+                                }
                             }
                         }
                     }
@@ -587,11 +649,109 @@ class WorldMapViewModel(
         _uiState.update { it.copy(selectedDevTerritory = null) }
     }
 
+    fun toggleTerritoriesOverlay() {
+        val next = !_uiState.value.showTerritoriesOverlay
+        _uiState.update { it.copy(showTerritoriesOverlay = next) }
+        syncOverlayVisibility()
+    }
+
+    fun toggleLaserTrailOverlay() {
+        val next = !_uiState.value.showLaserTrailOverlay
+        _uiState.update { it.copy(showLaserTrailOverlay = next) }
+        syncOverlayVisibility()
+    }
+
+    fun toggleTacticalPoisOverlay() {
+        val next = !_uiState.value.showTacticalPoisOverlay
+        _uiState.update { it.copy(showTacticalPoisOverlay = next) }
+        syncOverlayVisibility()
+    }
+
+    fun toggleRadarGridOverlay() {
+        val next = !_uiState.value.showRadarGridOverlay
+        _uiState.update { it.copy(showRadarGridOverlay = next) }
+        syncOverlayVisibility()
+    }
+
+    private fun syncOverlayVisibility() {
+        val state = _uiState.value
+        mapController?.setOverlayVisibility(
+            showTerritories = state.showTerritoriesOverlay,
+            showRoute = state.showLaserTrailOverlay,
+            showPois = state.showTacticalPoisOverlay,
+            showRadarGrid = state.showRadarGridOverlay
+        )
+    }
+
+    private fun generateTacticalPois(centerLat: Double, centerLng: Double): List<com.example.domain.model.TacticalPoi> {
+        return listOf(
+            com.example.domain.model.TacticalPoi(
+                id = "poi_supply_1",
+                name = "QUANTUM SUPPLY DROP",
+                type = com.example.domain.model.PoiType.SUPPLY_DROP,
+                latitude = centerLat + 0.0024,
+                longitude = centerLng + 0.0028,
+                description = "High-tier ammunition and defense shield boosters dropped by orbital drone.",
+                bonusXp = 250,
+                rewardText = "+250 XP • Defense +15%"
+            ),
+            com.example.domain.model.TacticalPoi(
+                id = "poi_energy_1",
+                name = "ION ENERGY CELL #04",
+                type = com.example.domain.model.PoiType.ENERGY_CELL,
+                latitude = centerLat - 0.0019,
+                longitude = centerLng - 0.0022,
+                description = "Recharge grid node offering sprint stamina multipliers for 30 minutes.",
+                bonusXp = 150,
+                rewardText = "+150 XP • 2x Run Stamina"
+            ),
+            com.example.domain.model.TacticalPoi(
+                id = "poi_beacon_1",
+                name = "VANGUARD OUTPOST TOWER",
+                type = com.example.domain.model.PoiType.FACTION_BEACON,
+                latitude = centerLat + 0.0031,
+                longitude = centerLng - 0.0016,
+                description = "Autonomous signal relay beacon. Capturing fortifies perimeter boundary by 500m.",
+                bonusXp = 300,
+                rewardText = "+300 XP • Perimeter Boost"
+            ),
+            com.example.domain.model.TacticalPoi(
+                id = "poi_radar_1",
+                name = "SURVEILLANCE RADAR RELAY",
+                type = com.example.domain.model.PoiType.DEFENSE_RADAR,
+                latitude = centerLat - 0.0028,
+                longitude = centerLng + 0.0025,
+                description = "High-altitude sensor revealing undetected rival movements across the sector.",
+                bonusXp = 200,
+                rewardText = "+200 XP • Map Scan Intel"
+            )
+        )
+    }
+
+    fun dismissPoiModal() {
+        _uiState.update { it.copy(showPoiModal = false, selectedPoi = null) }
+    }
+
+    fun claimPoi(poi: com.example.domain.model.TacticalPoi) {
+        _uiState.update { state ->
+            val updatedPois = state.tacticalPois.filterNot { it.id == poi.id }
+            state.copy(
+                tacticalPois = updatedPois,
+                showPoiModal = false,
+                selectedPoi = null,
+                playerXpProgress = (state.playerXpProgress + 0.15f).coerceAtMost(1f)
+            )
+        }
+        mapController?.renderPOIs(_uiState.value.tacticalPois)
+    }
+
     // --- MapEventListener Callbacks ---
 
     override fun onMapReady() {
         _uiState.update { it.copy(isMapReady = true, isTileLoading = false, tileError = null) }
         val loc = _uiState.value.userLocation
+        val centerLat = loc?.latitude ?: MapConfig.DEFAULT_LAT
+        val centerLng = loc?.longitude ?: MapConfig.DEFAULT_LNG
 
         if (loc != null) {
             mapController?.setUserLocation(
@@ -606,11 +766,26 @@ class WorldMapViewModel(
             mapController?.setCenter(MapConfig.DEFAULT_LAT, MapConfig.DEFAULT_LNG, animated = false)
         }
 
+        // Generate and render tactical POIs around map center
+        val pois = generateTacticalPois(centerLat, centerLng)
+        _uiState.update { it.copy(tacticalPois = pois) }
+        mapController?.renderPOIs(pois)
+        mapController?.renderRadarGrid(centerLat, centerLng)
+
         // Render any existing user-captured territories if available
         if (_uiState.value.devTerritories.isNotEmpty()) {
             mapController?.renderTerritories(_uiState.value.devTerritories)
         } else {
             mapController?.clearTerritories()
+        }
+
+        syncOverlayVisibility()
+    }
+
+    override fun onPoiClicked(poiId: String) {
+        val found = _uiState.value.tacticalPois.find { it.id == poiId }
+        if (found != null) {
+            _uiState.update { it.copy(selectedPoi = found, showPoiModal = true) }
         }
     }
 
@@ -693,6 +868,44 @@ class WorldMapViewModel(
     fun dismissBattleEvaluation() {
         _uiState.update { it.copy(battleEvaluation = null, activeBattle = null) }
         closeCompletedRunSummary() // Close the run summary as well, or just reset state
+    }
+
+    fun confirmExpansion() {
+        val preview = _uiState.value.expansionPreview ?: return
+        viewModelScope.launch {
+            val currentAuth = authRepository.authState.value
+            val userId = if (currentAuth is com.example.domain.model.AuthState.Authenticated) currentAuth.user.id else "operative_01"
+            val displayName = _uiState.value.username
+            val faction = _uiState.value.faction
+
+            val confirmed = territoryRepository?.confirmTerritoryExpansion(
+                preview = preview,
+                userId = userId,
+                displayName = displayName,
+                faction = faction
+            )
+            val gainedM2 = preview.gainedAreaSqMeters.coerceAtLeast(0.0)
+            val gainedStr = if (gainedM2 >= 10000.0) {
+                "▲ +%.2f km² today".format(java.util.Locale.US, gainedM2 / 1_000_000.0)
+            } else {
+                "▲ +%.0f m² today".format(java.util.Locale.US, gainedM2)
+            }
+
+            _uiState.update { 
+                it.copy(
+                    confirmedExpansion = confirmed,
+                    showExpansionModal = false,
+                    expansionPreview = null,
+                    formattedTerritoryGainedToday = gainedStr
+                ) 
+            }
+            mapController?.clearExpansionLayers()
+        }
+    }
+
+    fun dismissExpansionModal() {
+        _uiState.update { it.copy(showExpansionModal = false, expansionPreview = null) }
+        mapController?.clearExpansionLayers()
     }
 
     override fun onMapMoved(lat: Double, lng: Double) {

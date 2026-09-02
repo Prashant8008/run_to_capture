@@ -49,8 +49,8 @@ fun RunNavGraph(
         composable(RunDestinations.SPLASH) {
             SplashScreen(
                 authRepository = appModule.authRepository,
-                onNavigateToOnboarding = {
-                    navController.navigate(RunDestinations.ONBOARDING) {
+                onNavigateToLogin = {
+                    navController.navigate(RunDestinations.LOGIN) {
                         popUpTo(RunDestinations.SPLASH) { inclusive = true }
                     }
                 },
@@ -142,6 +142,7 @@ fun RunNavGraph(
                 authRepository = appModule.authRepository,
                 healthRepository = appModule.healthRepository,
                 customizationRepository = appModule.customizationRepository,
+                territoryRepository = appModule.territoryRepository,
                 onNavigateToMap = {
                     navController.navigate(RunDestinations.MAP) {
                         popUpTo(RunDestinations.MAP) { inclusive = true }

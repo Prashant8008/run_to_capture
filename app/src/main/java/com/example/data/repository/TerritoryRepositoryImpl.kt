@@ -159,7 +159,107 @@ class TerritoryRepositoryImpl(
     }
 
     override suspend fun seedInitialSectorsIfEmpty() {
-        // No-op: sample/mock data removed
+        // Will be dynamically seeded once GPS location is available via seedSectorsAroundLocation
+    }
+
+    override suspend fun seedSectorsAroundLocation(latitude: Double, longitude: Double) {
+        val existing = territoryDao.getTerritoriesForUser("operative_all")
+        // Check if any existing territory is within ~15km (0.15 deg)
+        val hasNearby = existing.any {
+            val coords = parseCoordinates(it.geoJsonCoordinates)
+            coords.any { c -> Math.abs(c.latitude - latitude) < 0.15 && Math.abs(c.longitude - longitude) < 0.15 }
+        }
+        if (hasNearby && existing.isNotEmpty()) return
+
+        // Generate 4 tactical contested sectors in the quadrants around the user's GPS
+        val sectors = listOf(
+            // NW: APEX Stronghold
+            TerritoryEntity(
+                id = "sec_apex_${(latitude * 1000).toInt()}_${(longitude * 1000).toInt()}",
+                ownerUserId = "bot_apex_01",
+                ownerDisplayName = "APEX STRONGHOLD",
+                faction = "APEX",
+                geoJsonCoordinates = formatCoordinates(listOf(
+                    LatLng(latitude + 0.0018, longitude - 0.0015),
+                    LatLng(latitude + 0.0036, longitude - 0.0008),
+                    LatLng(latitude + 0.0042, longitude - 0.0032),
+                    LatLng(latitude + 0.0025, longitude - 0.0045),
+                    LatLng(latitude + 0.0012, longitude - 0.0030)
+                )),
+                areaSqMeters = 34500.0,
+                h3HexIndexes = "",
+                capturedAt = System.currentTimeMillis() - 86400000L * 3,
+                defenseLevel = 88,
+                serverSignature = "sig_apex_seed",
+                isAuthoritative = true,
+                isSynced = true
+            ),
+            // NE: SOLARIS Citadel
+            TerritoryEntity(
+                id = "sec_solaris_${(latitude * 1000).toInt()}_${(longitude * 1000).toInt()}",
+                ownerUserId = "bot_solaris_01",
+                ownerDisplayName = "SOLARIS CITADEL",
+                faction = "SOLARIS",
+                geoJsonCoordinates = formatCoordinates(listOf(
+                    LatLng(latitude + 0.0015, longitude + 0.0018),
+                    LatLng(latitude + 0.0038, longitude + 0.0022),
+                    LatLng(latitude + 0.0045, longitude + 0.0048),
+                    LatLng(latitude + 0.0022, longitude + 0.0055),
+                    LatLng(latitude + 0.0008, longitude + 0.0035)
+                )),
+                areaSqMeters = 38200.0,
+                h3HexIndexes = "",
+                capturedAt = System.currentTimeMillis() - 86400000L * 2,
+                defenseLevel = 76,
+                serverSignature = "sig_solaris_seed",
+                isAuthoritative = true,
+                isSynced = true
+            ),
+            // SE: CIPHER Nexus
+            TerritoryEntity(
+                id = "sec_cipher_${(latitude * 1000).toInt()}_${(longitude * 1000).toInt()}",
+                ownerUserId = "bot_cipher_01",
+                ownerDisplayName = "CIPHER NEXUS",
+                faction = "CIPHER",
+                geoJsonCoordinates = formatCoordinates(listOf(
+                    LatLng(latitude - 0.0012, longitude + 0.0015),
+                    LatLng(latitude - 0.0010, longitude + 0.0042),
+                    LatLng(latitude - 0.0035, longitude + 0.0050),
+                    LatLng(latitude - 0.0048, longitude + 0.0025),
+                    LatLng(latitude - 0.0030, longitude + 0.0008)
+                )),
+                areaSqMeters = 41500.0,
+                h3HexIndexes = "",
+                capturedAt = System.currentTimeMillis() - 86400000L * 5,
+                defenseLevel = 92,
+                serverSignature = "sig_cipher_seed",
+                isAuthoritative = true,
+                isSynced = true
+            ),
+            // SW: Contested Neutral Sector
+            TerritoryEntity(
+                id = "sec_neutral_${(latitude * 1000).toInt()}_${(longitude * 1000).toInt()}",
+                ownerUserId = "unclaimed",
+                ownerDisplayName = "CONTESTED GRID 04",
+                faction = "CIPHER",
+                geoJsonCoordinates = formatCoordinates(listOf(
+                    LatLng(latitude - 0.0015, longitude - 0.0015),
+                    LatLng(latitude - 0.0008, longitude - 0.0040),
+                    LatLng(latitude - 0.0032, longitude - 0.0052),
+                    LatLng(latitude - 0.0046, longitude - 0.0030),
+                    LatLng(latitude - 0.0032, longitude - 0.0010)
+                )),
+                areaSqMeters = 29000.0,
+                h3HexIndexes = "",
+                capturedAt = System.currentTimeMillis() - 86400000L * 1,
+                defenseLevel = 45,
+                serverSignature = "sig_neutral_seed",
+                isAuthoritative = true,
+                isSynced = true
+            )
+        )
+
+        territoryDao.insertTerritories(sectors)
     }
 
     override suspend fun seedMockTerritories(territories: List<DevTerritory>) {

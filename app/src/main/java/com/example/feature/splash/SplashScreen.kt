@@ -51,7 +51,7 @@ import kotlin.math.sin
 @Composable
 fun SplashScreen(
     authRepository: AuthRepository,
-    onNavigateToOnboarding: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     onNavigateToDashboard: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -80,11 +80,11 @@ fun SplashScreen(
             }
             is AuthState.Unauthenticated, is AuthState.Initial -> {
                 delay(1200)
-                onNavigateToOnboarding()
+                onNavigateToLogin()
             }
             else -> {
                 delay(1200)
-                onNavigateToOnboarding()
+                onNavigateToLogin()
             }
         }
     }

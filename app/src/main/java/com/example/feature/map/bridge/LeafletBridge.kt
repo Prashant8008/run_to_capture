@@ -30,6 +30,11 @@ interface LeafletMapController {
     fun renderExpansionPreview(previewPolygons: List<List<com.example.domain.model.LatLng>>, colorHex: String? = null)
     fun renderConfirmedTerritory(territory: DevTerritory, colorHex: String? = null)
     fun clearExpansionLayers()
+    fun renderPOIs(pois: List<com.example.domain.model.TacticalPoi>)
+    fun clearPOIs()
+    fun renderRadarGrid(lat: Double, lng: Double)
+    fun clearRadarGrid()
+    fun setOverlayVisibility(showTerritories: Boolean, showRoute: Boolean, showPois: Boolean, showRadarGrid: Boolean)
     fun fitBoundsToPoints(points: List<com.example.domain.model.LatLng>)
     fun zoomIn()
     fun zoomOut()
@@ -40,6 +45,7 @@ interface LeafletMapController {
 interface MapEventListener {
     fun onMapReady()
     fun onTerritoryClicked(territoryId: String)
+    fun onPoiClicked(poiId: String) {}
     fun onMapMoved(lat: Double, lng: Double)
     fun onMapZoomChanged(zoom: Int)
     fun onTileLoading()
@@ -198,6 +204,46 @@ class LeafletBridge(
         evaluateJavascript("window.clearExpansionLayers();")
     }
 
+    override fun renderPOIs(pois: List<com.example.domain.model.TacticalPoi>) {
+        val sb = StringBuilder("[")
+        pois.forEachIndexed { i, p ->
+            if (i > 0) sb.append(",")
+            sb.append("{")
+            sb.append("\"id\":\"${p.id}\",")
+            sb.append("\"name\":\"${p.name.replace("\"", "\\\"")}\",")
+            sb.append("\"type\":\"${p.type.name}\",")
+            sb.append("\"icon\":\"${p.type.icon}\",")
+            sb.append("\"colorHex\":\"${p.type.colorHex}\",")
+            sb.append("\"latitude\":${p.latitude},")
+            sb.append("\"longitude\":${p.longitude},")
+            sb.append("\"rewardText\":\"${p.rewardText.replace("\"", "\\\"")}\"")
+            sb.append("}")
+        }
+        sb.append("]")
+        evaluateJavascript("window.renderPOIs('${sb.toString()}');")
+    }
+
+    override fun clearPOIs() {
+        evaluateJavascript("window.clearPOIs();")
+    }
+
+    override fun renderRadarGrid(lat: Double, lng: Double) {
+        evaluateJavascript("window.renderRadarGrid($lat, $lng);")
+    }
+
+    override fun clearRadarGrid() {
+        evaluateJavascript("window.clearRadarGrid();")
+    }
+
+    override fun setOverlayVisibility(
+        showTerritories: Boolean,
+        showRoute: Boolean,
+        showPois: Boolean,
+        showRadarGrid: Boolean
+    ) {
+        evaluateJavascript("window.setOverlayVisibility($showTerritories, $showRoute, $showPois, $showRadarGrid);")
+    }
+
     override fun fitBoundsToPoints(points: List<com.example.domain.model.LatLng>) {
         if (points.isEmpty()) return
         val sb = StringBuilder("[")
@@ -243,6 +289,13 @@ class LeafletBridge(
         fun territoryClicked(territoryId: String) {
             mainHandler.post {
                 eventListener?.onTerritoryClicked(territoryId)
+            }
+        }
+
+        @JavascriptInterface
+        fun poiClicked(poiId: String) {
+            mainHandler.post {
+                eventListener?.onPoiClicked(poiId)
             }
         }
 

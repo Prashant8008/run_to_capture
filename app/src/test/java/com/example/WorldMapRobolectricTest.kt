@@ -48,8 +48,10 @@ class FakeLocationClient : LocationClient {
     val locationFlow = MutableSharedFlow<UserLocation>(replay = 1)
     var hasPermission = true
     var gpsEnabled = true
+    var cachedLocation: UserLocation? = null
 
     override fun getLocationUpdates(intervalMs: Long): Flow<UserLocation> = locationFlow
+    override fun getLastKnownLocation(): UserLocation? = cachedLocation
     override fun hasLocationPermission(): Boolean = hasPermission
     override fun isGpsEnabled(): Boolean = gpsEnabled
     override fun getGpsStatus(accuracyMeters: Float): GpsSignalStatus {

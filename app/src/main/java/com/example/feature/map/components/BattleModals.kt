@@ -260,8 +260,13 @@ fun TerritoryDetailsModal(
                             )
                         )
                         Spacer(modifier = Modifier.height(4.dp))
+                        val formattedArea = when {
+                            territory.areaSqMeters >= 10000.0 -> String.format(java.util.Locale.US, "%.2f km²", territory.areaSqMeters / 1_000_000.0)
+                            territory.areaSqMeters > 0.0 -> String.format(java.util.Locale.US, "%.0f m²", territory.areaSqMeters)
+                            else -> "0.00 km²"
+                        }
                         Text(
-                            text = "%.2f km²".format(territory.areaSqMeters / 1000000.0).let { if (it == "0.00 km²") "0.61 km²" else it },
+                            text = formattedArea,
                             style = TextStyle(
                                 fontFamily = FontFamily.SansSerif,
                                 fontWeight = FontWeight.Bold,

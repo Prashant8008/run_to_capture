@@ -83,6 +83,7 @@ fun PlayerIdentityScreen(
     authRepository: AuthRepository,
     healthRepository: HealthRepository,
     customizationRepository: CustomizationRepository? = null,
+    territoryRepository: com.example.domain.repository.TerritoryRepository? = null,
     onNavigateToMap: () -> Unit = {},
     onNavigateToCustomization: () -> Unit = {},
     onNavigateToTab: (RunNavTab) -> Unit = {},
@@ -105,6 +106,17 @@ fun PlayerIdentityScreen(
             faction = Faction.CIPHER
         )
     }
+
+    val userTerritories by (territoryRepository?.observeUserTerritories(user.id)?.collectAsState(initial = emptyList())
+        ?: remember { mutableStateOf(emptyList()) })
+
+    val totalAreaM2 = userTerritories.sumOf { it.areaSqMeters }
+    val formattedTotalArea = when {
+        totalAreaM2 <= 0.0 -> "0.00 km²"
+        totalAreaM2 >= 10000.0 -> String.format(java.util.Locale.US, "%.2f km²", totalAreaM2 / 1_000_000.0)
+        else -> String.format(java.util.Locale.US, "%.0f m²", totalAreaM2)
+    }
+    val formattedSectorsCount = userTerritories.size.toString()
 
     val activeTerritoryColor = customState.territoryColor.ifEmpty { user.territoryColor }
     val activeFlag = customState.flag
@@ -318,7 +330,7 @@ fun PlayerIdentityScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "12.4 km²",
+                            text = formattedTotalArea,
                             style = MaterialTheme.typography.headlineSmall.copy(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Black
@@ -350,7 +362,7 @@ fun PlayerIdentityScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "48",
+                            text = formattedSectorsCount,
                             style = MaterialTheme.typography.headlineSmall.copy(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Black

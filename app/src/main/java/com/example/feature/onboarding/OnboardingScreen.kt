@@ -59,7 +59,7 @@ import com.example.core.designsystem.RunColors
 
 data class OnboardingStep(
     val badge: String,
-    val phaseNumber: String,
+    val stepNumber: String,
     val stepEyebrow: String,
     val title: String,
     val description: String,
@@ -72,8 +72,8 @@ data class OnboardingStep(
 
 private val steps = listOf(
     OnboardingStep(
-        badge = "PHASE 01 // LOCOMOTION",
-        phaseNumber = "01",
+        badge = "STEP 01 // LOCOMOTION",
+        stepNumber = "01",
         stepEyebrow = "STEP ONE // MOVEMENT PROTOCOL",
         title = "Every Run Becomes Ground You Hold.",
         description = "Your GPS trace draws the perimeter. Close the loop in the real world and the territory is yours to defend.",
@@ -84,8 +84,8 @@ private val steps = listOf(
         signalParam = "Outdoor Required"
     ),
     OnboardingStep(
-        badge = "PHASE 02 // TERRITORY",
-        phaseNumber = "02",
+        badge = "STEP 02 // TERRITORY",
+        stepNumber = "02",
         stepEyebrow = "STEP TWO // GROUND CONTROL",
         title = "Claim It. Shape It. Defend It.",
         description = "Closed loops become polygons on the live map. Expand your borders, or lose them to whoever runs harder.",
@@ -96,8 +96,8 @@ private val steps = listOf(
         signalParam = "Zero Signal Loss"
     ),
     OnboardingStep(
-        badge = "PHASE 03 // SYNDICATE DOMINANCE",
-        phaseNumber = "03",
+        badge = "STEP 03 // SYNDICATE DOMINANCE",
+        stepNumber = "03",
         stepEyebrow = "STEP THREE // ALIGNMENT",
         title = "Ascend The Factions.",
         description = "Pledge to a faction and stack your captures toward regional dominance. Every meter you hold counts for your colors.",

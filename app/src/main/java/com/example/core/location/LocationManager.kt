@@ -42,10 +42,13 @@ class LocationManager(
 ) : LocationManagerCoordinator {
 
     companion object {
-        const val MAX_VALID_ACCURACY_METERS = 35.0f
-        const val MAX_RUNNING_SPEED_MPS = 15.0f // ~54 km/h max realistic human sprint / downhill
-        const val MIN_POINT_DISTANCE_METERS = 2.0f
-        const val MAX_TELEPORT_DISTANCE_METERS = 250.0 // Teleport anomaly threshold
+        const val MAX_DISTANCE_ACCURACY_THRESHOLD_METERS = 30.0f // accuracy > 30m -> never add to distance
+        const val HIGH_ACCURACY_THRESHOLD_METERS = 15.0f // accuracy <= 15m -> good point
+        const val MAX_RUNNING_SPEED_MPS = 10.5f // ~38 km/h max realistic human sprint
+        const val CAUTIOUS_MAX_SPEED_MPS = 7.0f // ~25 km/h for 15-30m accuracy points
+        const val MIN_POINT_DISTANCE_METERS = 6.0f // 5-8 meters minimum movement threshold for running GPS (good points)
+        const val CAUTIOUS_MIN_DISTANCE_METERS = 12.0f // Stricter movement threshold for 15-30m accuracy points
+        const val MAX_TELEPORT_DISTANCE_METERS = 150.0 // Teleport anomaly threshold
         const val GPS_GAP_TIME_THRESHOLD_MS = 30_000L // 30s gap
     }
 
@@ -53,6 +56,7 @@ class LocationManager(
     private var locationUpdatesJob: Job? = null
     private var timerJob: Job? = null
     private var isFinishingInProgress = AtomicBoolean(false)
+    private val kalmanFilter = GpsKalmanFilter()
 
     private val _currentLocation = MutableStateFlow<UserLocation?>(null)
     val currentLocation: StateFlow<UserLocation?> = _currentLocation.asStateFlow()
@@ -155,8 +159,15 @@ class LocationManager(
     }
 
     private fun processActiveRunPoint(location: UserLocation) {
-        // Drop inaccurate jitter points
-        if (location.accuracyMeters > MAX_VALID_ACCURACY_METERS) {
+        // 1. Accuracy > 30m: Do not add to distance or recorded points (displayed on map only)
+        if (location.accuracyMeters > MAX_DISTANCE_ACCURACY_THRESHOLD_METERS) {
+            _activeRunStats.update {
+                it.copy(
+                    currentSpeedMps = location.speedMps,
+                    gpsStatus = _gpsStatus.value,
+                    isOffline = networkMonitor?.checkCurrentConnectivity() == false
+                )
+            }
             return
         }
 
@@ -167,22 +178,125 @@ class LocationManager(
         val isGpsGap = lastRecordedTimestamp > 0 && (now - lastRecordedTimestamp) > GPS_GAP_TIME_THRESHOLD_MS
         lastRecordedTimestamp = now
 
-        val distanceDelta = if (lastLoc != null) {
-            calculateDistanceMeters(lastLoc.latitude, lastLoc.longitude, location.latitude, location.longitude)
-        } else {
-            0.0
-        }
-
-        // Prevent teleport anomalies (> 250 meters in a single update)
-        if (lastLoc != null && distanceDelta > MAX_TELEPORT_DISTANCE_METERS && !isGpsGap) {
-            Log.w("LocationManager", "Filtered teleport anomaly: distance delta $distanceDelta m")
+        // If this is the very first valid GPS point of the run, anchor it as starting point (0m added)
+        if (lastLoc == null) {
+            val smoothedLocation = kalmanFilter.commit(location)
+            _activeRunStats.update {
+                it.copy(
+                    runState = RunState.RUNNING,
+                    trackingState = TrackingState.TRACKING,
+                    pointsCount = 1,
+                    distanceMeters = 0.0,
+                    currentSpeedMps = smoothedLocation.speedMps,
+                    avgSpeedMps = 0.0,
+                    lastKnownLocation = smoothedLocation,
+                    gpsStatus = _gpsStatus.value,
+                    isOffline = networkMonitor?.checkCurrentConnectivity() == false
+                )
+            }
+            val sessionId = _activeRunStats.value.sessionId
+            if (sessionId.isNotEmpty()) {
+                scope.launch(ioDispatcher) {
+                    locationRepository.saveLocationPoint(sessionId, smoothedLocation)
+                    val gpsPoint = GpsPoint(
+                        sessionId = sessionId,
+                        latitude = smoothedLocation.latitude,
+                        longitude = smoothedLocation.longitude,
+                        altitude = smoothedLocation.altitudeMeters,
+                        speed = smoothedLocation.speedMps,
+                        accuracy = smoothedLocation.accuracyMeters,
+                        heading = smoothedLocation.heading,
+                        timestamp = smoothedLocation.timestamp
+                    )
+                    _activeSessionPoints.update { it + gpsPoint }
+                }
+            }
             return
         }
 
-        val newTotalDistance = _activeRunStats.value.distanceMeters + distanceDelta
+        // Preview smoothed coordinates without corrupting filter state in case point is rejected
+        val previewLocation = kalmanFilter.preview(location)
+
+        val rawDistanceDelta = calculateDistanceMeters(
+            lastLoc.latitude,
+            lastLoc.longitude,
+            location.latitude,
+            location.longitude
+        )
+        val smoothedDistanceDelta = calculateDistanceMeters(
+            lastLoc.latitude,
+            lastLoc.longitude,
+            previewLocation.latitude,
+            previewLocation.longitude
+        )
+        val timeDeltaSec = ((now - lastLoc.timestamp) / 1000.0).coerceAtLeast(0.0)
+
+        // Ignore rapid duplicate callbacks arriving within sub-second intervals (< 0.4s)
+        if (timeDeltaSec < 0.4 && rawDistanceDelta < MIN_POINT_DISTANCE_METERS) {
+            return
+        }
+
+        // Universal Speed Filter: Reject any jump exceeding maximum human running capability (unless GPS gap)
+        if (timeDeltaSec > 0.2 && !isGpsGap) {
+            val impliedSpeedMps = rawDistanceDelta / timeDeltaSec
+            val maxAllowedSpeed = if (location.accuracyMeters <= HIGH_ACCURACY_THRESHOLD_METERS) {
+                MAX_RUNNING_SPEED_MPS
+            } else {
+                CAUTIOUS_MAX_SPEED_MPS
+            }
+
+            if (impliedSpeedMps > maxAllowedSpeed) {
+                Log.w(
+                    "LocationManager",
+                    "Filtered GPS jump: implied speed $impliedSpeedMps m/s ($rawDistanceDelta m in ${timeDeltaSec}s, accuracy ${location.accuracyMeters}m)"
+                )
+                return
+            }
+        }
+
+        // Prevent teleport anomalies (> 150m in a single update)
+        if (rawDistanceDelta > MAX_TELEPORT_DISTANCE_METERS && !isGpsGap) {
+            Log.w("LocationManager", "Filtered teleport anomaly: distance delta $rawDistanceDelta m")
+            return
+        }
+
+        // 2. Accuracy-weighted movement thresholds:
+        // - accuracy <= 15m: Good point -> standard movement threshold (6m)
+        // - accuracy 15m-30m: Use cautiously -> requires larger confirmed movement (>= 12m or accuracy * 0.6f)
+        val isHighAccuracy = location.accuracyMeters <= HIGH_ACCURACY_THRESHOLD_METERS
+        val minRequiredDistance = if (isHighAccuracy) {
+            MIN_POINT_DISTANCE_METERS
+        } else {
+            maxOf(CAUTIOUS_MIN_DISTANCE_METERS, location.accuracyMeters * 0.6f)
+        }
+
+        // Filter out movements below the accuracy-weighted threshold (unless GPS gap)
+        if (smoothedDistanceDelta < minRequiredDistance && !isGpsGap) {
+            _activeRunStats.update {
+                it.copy(
+                    currentSpeedMps = previewLocation.speedMps,
+                    gpsStatus = _gpsStatus.value,
+                    isOffline = networkMonitor?.checkCurrentConnectivity() == false
+                )
+            }
+            return
+        }
+
+        // Commit accepted measurement to Kalman filter
+        val smoothedLocation = kalmanFilter.commit(location)
+
+        // For GPS gap (e.g. signal loss for >30s), accept point as new anchor but do not add distance delta to prevent tunnel spike
+        val addedDistance = if (isGpsGap) 0.0 else calculateDistanceMeters(
+            lastLoc.latitude,
+            lastLoc.longitude,
+            smoothedLocation.latitude,
+            smoothedLocation.longitude
+        )
+
+        val newTotalDistance = _activeRunStats.value.distanceMeters + addedDistance
         val newPointsCount = _activeRunStats.value.pointsCount + 1
         val durationSec = _activeRunStats.value.durationSeconds
-        val avgSpeed = if (durationSec > 0) newTotalDistance / durationSec else location.speedMps.toDouble()
+        val avgSpeed = if (durationSec > 0) newTotalDistance / durationSec else smoothedLocation.speedMps.toDouble()
         val isOffline = networkMonitor?.checkCurrentConnectivity() == false
 
         _activeRunStats.update {
@@ -191,9 +305,9 @@ class LocationManager(
                 trackingState = TrackingState.TRACKING,
                 pointsCount = newPointsCount,
                 distanceMeters = newTotalDistance,
-                currentSpeedMps = location.speedMps,
+                currentSpeedMps = smoothedLocation.speedMps,
                 avgSpeedMps = avgSpeed,
-                lastKnownLocation = location,
+                lastKnownLocation = smoothedLocation,
                 gpsStatus = _gpsStatus.value,
                 isOffline = isOffline
             )
@@ -203,16 +317,16 @@ class LocationManager(
         val sessionId = _activeRunStats.value.sessionId
         if (sessionId.isNotEmpty()) {
             scope.launch(ioDispatcher) {
-                locationRepository.saveLocationPoint(sessionId, location)
+                locationRepository.saveLocationPoint(sessionId, smoothedLocation)
                 val gpsPoint = GpsPoint(
                     sessionId = sessionId,
-                    latitude = location.latitude,
-                    longitude = location.longitude,
-                    altitude = location.altitudeMeters,
-                    speed = location.speedMps,
-                    accuracy = location.accuracyMeters,
-                    heading = location.heading,
-                    timestamp = location.timestamp
+                    latitude = smoothedLocation.latitude,
+                    longitude = smoothedLocation.longitude,
+                    altitude = smoothedLocation.altitudeMeters,
+                    speed = smoothedLocation.speedMps,
+                    accuracy = smoothedLocation.accuracyMeters,
+                    heading = smoothedLocation.heading,
+                    timestamp = smoothedLocation.timestamp
                 )
                 _activeSessionPoints.update { it + gpsPoint }
             }
@@ -239,6 +353,7 @@ class LocationManager(
      */
     fun cancelRun() {
         timerJob?.cancel()
+        kalmanFilter.reset()
         val sessionId = _activeRunStats.value.sessionId
         if (sessionId.isNotEmpty()) {
             scope.launch(ioDispatcher) {
@@ -256,6 +371,8 @@ class LocationManager(
      * Resets state back to IDLE
      */
     fun resetToIdle() {
+        timerJob?.cancel()
+        kalmanFilter.reset()
         _runState.value = RunState.IDLE
         _activeRunStats.value = ActiveRunStats(runState = RunState.IDLE, trackingState = TrackingState.IDLE)
         _completedRunResult.value = null
@@ -276,6 +393,7 @@ class LocationManager(
             return ""
         }
 
+        kalmanFilter.reset()
         val sessionId = customSessionId ?: "run_${UUID.randomUUID().toString().take(8)}"
         _activeSessionPoints.value = emptyList()
         lastRecordedTimestamp = System.currentTimeMillis()
@@ -290,9 +408,9 @@ class LocationManager(
             pointsCount = 0,
             distanceMeters = 0.0,
             durationSeconds = 0,
-            currentSpeedMps = _currentLocation.value?.speedMps ?: 0f,
+            currentSpeedMps = 0f,
             avgSpeedMps = 0.0,
-            lastKnownLocation = _currentLocation.value,
+            lastKnownLocation = null, // Fresh run anchor: wait for first fresh GPS fix
             gpsStatus = _gpsStatus.value,
             error = null,
             isOffline = isOffline
